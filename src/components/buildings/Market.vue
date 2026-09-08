@@ -69,7 +69,7 @@ import {
   marketDailyTrades,
   marketTradesResetCooldownRemainingMs,
   buildingUpgradeCost,
-  barracksCapacity,
+  BARRACKS_CAPACITY,
   createGladiator,
   gladiatorSellValue,
 } from "@/core/game/gameRules";
@@ -133,9 +133,7 @@ watch(
   { immediate: true },
 );
 
-const capacity = computed(() =>
-  barracksCapacity(userData.value?.buildings.barracks.level || 1),
-);
+const capacity = computed(() => BARRACKS_CAPACITY);
 const gladiatorCount = computed(
   () => Object.keys(userData.value?.gladiators || {}).length,
 );

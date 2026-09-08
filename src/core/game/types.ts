@@ -4,7 +4,8 @@ import type { Timestamp } from "firebase/firestore";
 
 export type Line = "dps" | "tank";
 
-// Every gladiator stat is stored on a 0-100 scale (ROADMAP.md §2).
+// Attack/Defense/Luck are stored on a 0-200 scale (see STAT_MAX in
+// gameRules.ts, ROADMAP.md §2). HP has no upper bound.
 export interface GladiatorStats {
   atk: number;
   luck: number;
@@ -33,16 +34,10 @@ export type BuildingKey =
 export interface FanDonationBuilding {
   level: number;
   lastCollected: Timestamp;
-  // Luck Boost: rolled at most once every 24h (see LUCK_BOOST_COOLDOWN_MS),
-  // odds set by building level. lastLuckBoostRolledAt anchors the cooldown
-  // for the *next* roll regardless of whether the current one was claimed.
-  lastLuckBoostRolledAt?: Timestamp;
-  luckBoostAvailable: boolean;
 }
 
-export interface BarracksBuilding {
-  level: number;
-}
+// Barracks has a fixed capacity (see BARRACKS_CAPACITY) - no upgrade.
+export type BarracksBuilding = Record<string, never>;
 
 export interface TrainingProgramBuilding {
   level: number;

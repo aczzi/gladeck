@@ -1,19 +1,12 @@
 <template>
   <div class="card bg-dark text-light mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
-      <span><i class="bi bi-shield-fill" /> Barracks - Level {{ level }}</span>
+      <span><i class="bi bi-shield-fill" /> Barracks</span>
       <span class="badge bg-secondary"
         >{{ gladiatorCount }}/{{ capacity }} gladiators</span
       >
     </div>
     <div class="card-body">
-      <button
-        class="btn btn-outline-light"
-        :disabled="gold < upgradeCost"
-        @click="upgrade"
-      >
-        Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
-      </button>
       <p v-if="gladiators.length === 0" class="text-muted m-2">
         No gladiators yet - recruit some at the Market.
       </p>
@@ -56,17 +49,14 @@
 import { computed } from "vue";
 import { useGameStore } from "@/core/store/gameStore";
 import {
-  barracksCapacity,
-  buildingUpgradeCost,
+  BARRACKS_CAPACITY,
   gladiatorPower,
   gladiatorPowerTier,
 } from "@/core/game/gameRules";
 
-const { userData, gold, updateUserData } = useGameStore();
+const { userData, updateUserData } = useGameStore();
 
-const level = computed(() => userData.value?.buildings.barracks.level || 1);
-const capacity = computed(() => barracksCapacity(level.value));
-const upgradeCost = computed(() => buildingUpgradeCost(level.value));
+const capacity = computed(() => BARRACKS_CAPACITY);
 
 const gladiators = computed(() =>
   Object.values(userData.value?.gladiators || {}),
@@ -117,25 +107,5 @@ const renameGladiator = (gladiatorId: string, event: Event) => {
       [gladiatorId]: { ...gladiator, name },
     },
   });
-};
-
-const upgrade = () => {
-  if (!userData.value || gold.value < upgradeCost.value) return;
-  updateUserData(
-    {
-      profile: {
-        ...userData.value.profile,
-        gold: gold.value - upgradeCost.value,
-      },
-      buildings: {
-        ...userData.value.buildings,
-        barracks: {
-          ...userData.value.buildings.barracks,
-          level: level.value + 1,
-        },
-      },
-    },
-    { immediate: true },
-  );
 };
 </script>

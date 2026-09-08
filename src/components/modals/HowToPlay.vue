@@ -9,14 +9,13 @@
     <h4>Camp</h4>
     <p>
       Grow five buildings: <b>Fan donation</b> collects gold from your
-      supporters automatically and can also roll, once every 24h, a Luck Boost
-      you hand to any gladiator - the higher the building's level, the better
-      your odds; the <b>Barracks</b> houses your gladiators, lets you rename
-      them and ranks them by power so your best fighters stand out (upgrade it
-      for more storage), the <b>Training Program</b> trains gladiator stats, the
+      supporters automatically; the <b>Barracks</b> houses up to 8 gladiators,
+      lets you rename them and ranks them by power so your best fighters stand
+      out; the <b>Training Program</b> trains gladiator stats, the
       <b>Infirmary</b> heals injured gladiators, and the <b>Market</b> lets you
-      recruit new gladiators and trade resources. Each gladiator has 4 stats on
-      a 0-100 scale: Attack, Luck, Health, Defense.
+      recruit new gladiators and trade resources. Each gladiator has 4 stats:
+      Attack, Luck and Defense on a 0-200 scale, and Health with no upper
+      bound.
     </p>
     <h4>Combat</h4>
     <p>
@@ -34,9 +33,10 @@
     <p>
       Winning grants rank points and gold; your surviving gladiators come back
       injured (heal at the Infirmary) but also a little stronger - each fight
-      survived permanently nudges up Attack, Defense and Luck, on top of
-      Training Program upgrades, so veterans are worth keeping. Losing removes
-      the 4 gladiators that fought from your camp - rebuild through the Market.
+      won permanently nudges up Attack and Defense, on top of Training
+      Program upgrades, and grants a flat +1 Max HP and +1 Luck, so veterans
+      are worth keeping. Losing removes the 4 gladiators that fought from
+      your camp - rebuild through the Market.
     </p>
   </div>
 </template>

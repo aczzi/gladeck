@@ -20,7 +20,7 @@ import type {
 // eligible, and GLADIATORS_PER_BATTLE of them are drawn at random per fight.
 export const GLADIATORS_PER_BATTLE = 4;
 export const STAT_MIN = 0;
-export const STAT_MAX = 100;
+export const STAT_MAX = 200;
 
 // Crit chance grows with the attacker's Luck, capped at 30%.
 // Dodge chance grows with the target's Luck, capped at 20% - lower than
@@ -345,39 +345,8 @@ export function fanDonationGoldSinceLastCollection(
   return Math.floor(fanDonationGoldPerDay(level) * elapsedDays);
 }
 
-// Fan donation also rolls, at most once every 24h, for a Luck Boost the
-// trainer can hand to any one gladiator. The roll itself (not just its
-// value) is gated by level: chance grows from 15% at level 1 by +5%/level,
-// capped at 100%. The boost's magnitude stays flat (+1 Luck) regardless of
-// level - only the odds of getting one improve.
-export const LUCK_BOOST_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-export const LUCK_BOOST_VALUE = 1;
-
-export function luckBoostChance(level: number): number {
-  return Math.min(1, 0.1 + level * 0.05);
-}
-
-export function luckBoostCooldownRemainingMs(
-  lastRolledAt: Timestamp | undefined,
-  now: number = Date.now(),
-): number {
-  if (!lastRolledAt) return 0;
-  const elapsed = now - lastRolledAt.toMillis();
-  return Math.max(0, LUCK_BOOST_COOLDOWN_MS - elapsed);
-}
-
-export function rollLuckBoost(level: number): boolean {
-  return Math.random() < luckBoostChance(level);
-}
-
-export function applyLuckBoost(stats: GladiatorStats): GladiatorStats {
-  return { ...stats, luck: Math.min(STAT_MAX, stats.luck + LUCK_BOOST_VALUE) };
-}
-
-// Barracks: Storage capacity = floor(6 * 1.35^(Level-1))
-export function barracksCapacity(level: number): number {
-  return Math.floor(6 * Math.pow(1.35, level - 1));
-}
+// Barracks: fixed storage capacity, no upgrade.
+export const BARRACKS_CAPACITY = 8;
 
 // Training Program: bonus % scales with level.
 export function trainingProgramBonusPercent(level: number): number {
@@ -461,11 +430,14 @@ export function buildingUpgradeCost(level: number): number {
 // ====== Gladiator experience & value ======
 
 // Veteran gladiators grow stronger with every fight survived: a small
-// permanent bump to Attack/Defense/Luck on top of whatever Training Program
+// permanent bump to Attack/Defense on top of whatever Training Program
 // upgrades already gave them, applied the same multiplicative way as
-// applyTrainingProgramUpgrade. A gladiator that dies is removed from the
-// roster (Arena.vue), so this only ever rewards survivors.
+// applyTrainingProgramUpgrade - plus a flat +1 Max HP and +1 Luck per win.
+// A gladiator that dies is removed from the roster (Arena.vue), so this
+// only ever rewards survivors of a victory.
 export const EXPERIENCE_BONUS_PER_FIGHT_PERCENT = 1;
+export const VICTORY_HP_MAX_GAIN = 1;
+export const VICTORY_LUCK_GAIN = 1;
 
 export function applyExperienceGain(stats: GladiatorStats): GladiatorStats {
   const mult = 1 + EXPERIENCE_BONUS_PER_FIGHT_PERCENT / 100;
@@ -473,7 +445,8 @@ export function applyExperienceGain(stats: GladiatorStats): GladiatorStats {
     ...stats,
     atk: Math.min(STAT_MAX, stats.atk * mult),
     def: Math.min(STAT_MAX, stats.def * mult),
-    luck: Math.min(STAT_MAX, stats.luck * mult),
+    luck: Math.min(STAT_MAX, stats.luck + VICTORY_LUCK_GAIN),
+    hpMax: stats.hpMax + VICTORY_HP_MAX_GAIN,
   };
 }
 
@@ -514,7 +487,7 @@ export function gladiatorPowerTier(power: number): GladiatorPowerTier {
 // off at resale instead of being a pure sink (see gladiatorPowerTier) -
 // crossing into a higher badge is what makes the training worth it, not
 // just the raw stat gain.
-export const SELL_VALUE_PER_BATTLE_FOUGHT_GOLD = 2;
+export const SELL_VALUE_PER_BATTLE_FOUGHT_GOLD = 10;
 
 export const SELL_VALUE_TIER_MULTIPLIER: Record<GladiatorPowerTier, number> = {
   rookie: 1,
@@ -582,9 +555,8 @@ export const startBuildings: Buildings = {
   fanDonation: {
     level: 1,
     lastCollected: Timestamp.now(),
-    luckBoostAvailable: false,
   },
-  barracks: { level: 1 },
+  barracks: {},
   trainingProgram: { level: 1 },
   infirmary: { level: 1 },
   market: {
