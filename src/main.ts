@@ -11,7 +11,7 @@ import Camp from "@/components/Camp.vue";
 import Arena from "@/components/Arena.vue";
 import FanDonation from "@/components/buildings/FanDonation.vue";
 import Barracks from "@/components/buildings/Barracks.vue";
-import School from "@/components/buildings/School.vue";
+import TrainingProgram from "@/components/buildings/TrainingProgram.vue";
 import Infirmary from "@/components/buildings/Infirmary.vue";
 import Market from "@/components/buildings/Market.vue";
 import TopInfo from "@/components/subComponents/TopInfo.vue";
@@ -34,7 +34,7 @@ app
   .component("Arena", Arena)
   .component("FanDonation", FanDonation)
   .component("Barracks", Barracks)
-  .component("School", School)
+  .component("TrainingProgram", TrainingProgram)
   .component("Infirmary", Infirmary)
   .component("Market", Market)
   .mount("#app");

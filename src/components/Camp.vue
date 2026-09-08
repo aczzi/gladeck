@@ -3,7 +3,7 @@
     <div class="row">
       <div class="col-md-6">
         <Market />
-        <School />
+        <TrainingProgram />
         <Infirmary />
         <FanDonation />
       </div>
@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import FanDonation from "@/components/buildings/FanDonation.vue";
 import Barracks from "@/components/buildings/Barracks.vue";
-import School from "@/components/buildings/School.vue";
+import TrainingProgram from "@/components/buildings/TrainingProgram.vue";
 import Infirmary from "@/components/buildings/Infirmary.vue";
 import Market from "@/components/buildings/Market.vue";
 </script>

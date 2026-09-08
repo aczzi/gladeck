@@ -20,61 +20,64 @@
         >
           <i class="bi bi-download" /> Collect
         </button>
+        <hr />
+        <div v-if="luckBoostAvailable">
+          <p class="card-text">
+            <i class="bi bi-stars text-warning" /> A Luck Boost (+{{
+              LUCK_BOOST_VALUE
+            }}
+            Luck) is ready to hand out!
+          </p>
+          <div class="d-flex gap-2 align-items-end">
+            <select v-model="selectedGladiatorId" class="form-select">
+              <option
+                v-for="gladiator in gladiators"
+                :key="gladiator.id"
+                :value="gladiator.id"
+              >
+                {{ gladiator.name }} (Luck
+                {{ Math.round(gladiator.stats.luck) }})
+              </option>
+            </select>
+            <button
+              class="btn btn-warning"
+              :disabled="!selectedGladiatorId"
+              @click="applyBoost"
+            >
+              <i class="bi bi-magic" /> Apply
+            </button>
+          </div>
+        </div>
+        <button
+          v-else
+          class="btn btn-outline-warning"
+          :disabled="luckBoostCooldownMs > 0"
+          @click="rollBoost"
+        >
+          <i class="bi bi-stars" />
+          {{
+            luckBoostCooldownMs > 0
+              ? `Next Luck Boost roll in ${formatCooldown(luckBoostCooldownMs)}`
+              : `Roll for a Luck Boost (${luckBoostChancePercent}% chance)`
+          }}
+        </button>
+        <p
+          v-if="lastRollFailed && luckBoostCooldownMs > 0"
+          class="text-muted small mt-2 mb-0"
+        >
+          No Luck Boost this time - try again in
+          {{ formatCooldown(luckBoostCooldownMs) }}.
+        </p>
+      </div>
+      <div class="d-flex gap-2 mb-3">
         <button
           class="btn btn-outline-light"
           :disabled="gold < upgradeCost"
           @click="upgrade"
         >
-          <i class="bi bi-arrow-up-circle" /> Upgrade ({{ upgradeCost }} gold)
+          Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
         </button>
       </div>
-      <hr />
-      <div v-if="luckBoostAvailable">
-        <p class="card-text">
-          <i class="bi bi-stars text-warning" /> A Luck Boost (+{{
-            LUCK_BOOST_VALUE
-          }}
-          Luck) is ready to hand out!
-        </p>
-        <div class="d-flex gap-2 align-items-end">
-          <select v-model="selectedGladiatorId" class="form-select">
-            <option
-              v-for="gladiator in gladiators"
-              :key="gladiator.id"
-              :value="gladiator.id"
-            >
-              {{ gladiator.name }} (Luck {{ Math.round(gladiator.stats.luck) }})
-            </option>
-          </select>
-          <button
-            class="btn btn-warning"
-            :disabled="!selectedGladiatorId"
-            @click="applyBoost"
-          >
-            <i class="bi bi-magic" /> Apply
-          </button>
-        </div>
-      </div>
-      <button
-        v-else
-        class="btn btn-outline-warning"
-        :disabled="luckBoostCooldownMs > 0"
-        @click="rollBoost"
-      >
-        <i class="bi bi-stars" />
-        {{
-          luckBoostCooldownMs > 0
-            ? `Next Luck Boost roll in ${formatCooldown(luckBoostCooldownMs)}`
-            : `Roll for a Luck Boost (${luckBoostChancePercent}% chance)`
-        }}
-      </button>
-      <p
-        v-if="lastRollFailed && luckBoostCooldownMs > 0"
-        class="text-muted small mt-2 mb-0"
-      >
-        No Luck Boost this time - try again in
-        {{ formatCooldown(luckBoostCooldownMs) }}.
-      </p>
     </div>
   </div>
 </template>
@@ -211,7 +214,11 @@ const rollBoost = () => {
 };
 
 const applyBoost = () => {
-  if (!userData.value || !selectedGladiatorId.value || !luckBoostAvailable.value)
+  if (
+    !userData.value ||
+    !selectedGladiatorId.value ||
+    !luckBoostAvailable.value
+  )
     return;
   const gladiator = userData.value.gladiators[selectedGladiatorId.value];
   if (!gladiator) return;

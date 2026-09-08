@@ -45,7 +45,7 @@
         :disabled="gold < upgradeCost"
         @click="upgrade"
       >
-        <i class="bi bi-arrow-up-circle" /> Upgrade ({{ upgradeCost }} gold)
+        Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
       </button>
     </div>
   </div>

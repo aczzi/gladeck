@@ -10,7 +10,10 @@
       <i class="bi bi-exclamation-triangle" />
       Error loading leaderboard: {{ error }}
     </div>
-    <table v-else-if="players.length > 0" class="table table-responsive table-dark">
+    <table
+      v-else-if="players.length > 0"
+      class="table table-responsive table-dark"
+    >
       <thead>
         <tr>
           <th scope="col">
@@ -24,7 +27,7 @@
           </th>
           <th scope="col">Lanista</th>
           <th scope="col">Rank points</th>
-          <th scope="col" class="hide-right">Gold</th>
+          <th scope="col" class="hide-right">Roster value</th>
         </tr>
       </thead>
       <tbody>
@@ -42,7 +45,7 @@
           </td>
           <td>{{ formatNumber(player.rankPoints) }}</td>
           <td class="hide-right">
-            {{ formatNumber(player.gold) }}
+            {{ formatNumber(player.rosterValue) }} gold
           </td>
         </tr>
       </tbody>
@@ -65,13 +68,23 @@ import {
   getDocsFromServer,
 } from "firebase/firestore";
 import { db } from "@/core/firebase/store";
+import { gladiatorSellValue } from "@/core/game/gameRules";
+import type { Gladiator } from "@/core/game/types";
 
 interface LeaderboardPlayer {
   id: string;
   username: string;
   rankPoints: number;
-  gold: number;
+  rosterValue: number;
 }
+
+const rosterValue = (
+  gladiators: Record<string, Gladiator> | undefined,
+): number =>
+  Object.values(gladiators || {}).reduce(
+    (sum, g) => sum + gladiatorSellValue(g.stats, g.battlesFought || 0),
+    0,
+  );
 
 const players = ref<LeaderboardPlayer[]>([]);
 const loading = ref(false);
@@ -103,7 +116,7 @@ const fetchLeaderboard = async (forceRefresh = false): Promise<void> => {
         id: doc.id,
         username: data.profile?.username || "Anonymous Trainer",
         rankPoints: data.profile?.rankPoints || 0,
-        gold: data.profile?.gold || 0,
+        rosterValue: rosterValue(data.gladiators),
       });
     });
 

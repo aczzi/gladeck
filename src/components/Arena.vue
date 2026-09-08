@@ -18,7 +18,7 @@
     <div v-else-if="!result" class="row justify-content-center">
       <div class="col-md-8">
         <h5 class="text-center">
-          Place {{ sentGladiators.length }} gladiators as Attacker or Defender
+          Place {{ sentGladiators.length }} gladiators as DPS or Tank
         </h5>
         <div class="row">
           <div
@@ -29,18 +29,10 @@
             <div class="card bg-dark text-light">
               <div class="card-body">
                 <h6>{{ gladiator.name }}</h6>
-                <p class="text-muted mb-1">
-                  Base: ATK {{ Math.round(gladiator.stats.atk) }} - DEF
-                  {{ Math.round(gladiator.stats.def) }} - LUCK
-                  {{ Math.round(gladiator.stats.luck) }}
-                </p>
                 <p v-if="placement[gladiator.id]" class="text-info mb-2">
                   As
-                  {{
-                    placement[gladiator.id] === "attacker"
-                      ? "Attacker"
-                      : "Defender"
-                  }}: ATK {{ Math.round(displayedStats(gladiator).atk) }} - DEF
+                  {{ placement[gladiator.id] === "dps" ? "DPS" : "Tank" }}: ATK
+                  {{ Math.round(displayedStats(gladiator).atk) }} - DEF
                   {{ Math.round(displayedStats(gladiator).def) }} - LUCK
                   {{ Math.round(displayedStats(gladiator).luck) }}
                 </p>
@@ -51,24 +43,24 @@
                   <button
                     class="btn btn-sm"
                     :class="
-                      placement[gladiator.id] === 'attacker'
+                      placement[gladiator.id] === 'dps'
                         ? 'btn-primary'
                         : 'btn-outline-primary'
                     "
-                    @click="placement[gladiator.id] = 'attacker'"
+                    @click="placement[gladiator.id] = 'dps'"
                   >
-                    Attacker
+                    DPS
                   </button>
                   <button
                     class="btn btn-sm"
                     :class="
-                      placement[gladiator.id] === 'defender'
+                      placement[gladiator.id] === 'tank'
                         ? 'btn-info'
                         : 'btn-outline-info'
                     "
-                    @click="placement[gladiator.id] = 'defender'"
+                    @click="placement[gladiator.id] = 'tank'"
                   >
-                    Defender
+                    Tank
                   </button>
                 </div>
               </div>
@@ -118,9 +110,7 @@
           +{{ result.rankPointsGained }} rank points, +{{ result.goldGained }}
           gold. Surviving gladiators come back injured.
         </p>
-        <p v-else>
-          The gladiators you sent died.
-        </p>
+        <p v-else>The gladiators you sent died.</p>
         <p
           v-if="lastBet > 0"
           :class="result.victory ? 'text-success' : 'text-danger'"
@@ -188,6 +178,7 @@ import {
   distributeRivalBudget,
   resolveCombat,
   applyLineModifiers,
+  applyExperienceGain,
 } from "@/core/game/gameRules";
 import type { CombatResult } from "@/core/game/types";
 
@@ -255,18 +246,28 @@ const engage = () => {
       combatResult.trainerUnits.map((u) => [u.id, u]),
     );
     const gladiators = { ...userData.value.gladiators };
-    for (const gladiator of sentGladiators.value) {      
+    for (const gladiator of sentGladiators.value) {
       const unit = finalHpById.get(gladiator.id);
-      let stats = gladiator.stats
-      stats.hpCurrent = Math.min(stats.hpMax, Math.max(0, unit ? unit.hpCurrent : gladiator.stats.hpCurrent))
-      if (stats.hpCurrent <= 0) {
+      const hpCurrent = Math.min(
+        gladiator.stats.hpMax,
+        Math.max(0, unit ? unit.hpCurrent : gladiator.stats.hpCurrent),
+      );
+      if (hpCurrent <= 0) {
         delete gladiators[gladiator.id];
+        continue;
       }
-      else {
-        gladiators[gladiator.id] = { ...gladiator, stats, injured: stats.hpCurrent < stats.hpMax};
-      }
+      // Survivors gain a little permanent experience - see
+      // applyExperienceGain in gameRules.ts.
+      const stats = applyExperienceGain({ ...gladiator.stats, hpCurrent });
+      gladiators[gladiator.id] = {
+        ...gladiator,
+        stats,
+        injured: stats.hpCurrent < stats.hpMax,
+        battlesFought: (gladiator.battlesFought || 0) + 1,
+      };
     }
-    const newRankPoints = userData.value.profile.rankPoints + combatResult.rankPointsGained;
+    const newRankPoints =
+      userData.value.profile.rankPoints + combatResult.rankPointsGained;
     updateUserData(
       {
         profile: {

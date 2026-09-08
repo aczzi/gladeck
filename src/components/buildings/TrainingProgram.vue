@@ -2,7 +2,8 @@
   <div class="card bg-dark text-light mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
       <span
-        ><i class="bi bi-mortarboard-fill" /> School - Level {{ level }}</span
+        ><i class="bi bi-mortarboard-fill" /> Training Program - Level
+        {{ level }}</span
       >
       <span class="badge bg-secondary">+{{ bonusPercent }}%</span>
     </div>
@@ -55,10 +56,9 @@
       <button
         class="btn btn-outline-light"
         :disabled="gold < upgradeCost"
-        @click="upgradeSchool"
+        @click="upgradeTrainingProgram"
       >
-        <i class="bi bi-arrow-up-circle" /> Upgrade ({{ upgradeCost }}
-        gold)
+        Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
       </button>
     </div>
   </div>
@@ -69,11 +69,11 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { Timestamp } from "firebase/firestore";
 import { useGameStore } from "@/core/store/gameStore";
 import {
-  schoolBonusPercent,
-  schoolUpgradeCooldownRemainingMs,
+  trainingProgramBonusPercent,
+  trainingProgramUpgradeCooldownRemainingMs,
   buildingUpgradeCost,
-  applySchoolUpgrade,
-  type SchoolTrainableStat,
+  applyTrainingProgramUpgrade,
+  type TrainingProgramTrainableStat,
 } from "@/core/game/gameRules";
 import type { Gladiator } from "@/core/game/types";
 
@@ -81,8 +81,10 @@ const UPGRADE_GLADIATOR_COST = 30;
 
 const { userData, gold, updateUserData } = useGameStore();
 
-const level = computed(() => userData.value?.buildings.school.level || 1);
-const bonusPercent = computed(() => schoolBonusPercent(level.value));
+const level = computed(
+  () => userData.value?.buildings.trainingProgram.level || 1,
+);
+const bonusPercent = computed(() => trainingProgramBonusPercent(level.value));
 const upgradeCost = computed(() => buildingUpgradeCost(level.value));
 const upgradeGladiatorCost = UPGRADE_GLADIATOR_COST;
 
@@ -90,7 +92,7 @@ const gladiators = computed(() =>
   Object.values(userData.value?.gladiators || {}),
 );
 const selectedGladiatorId = ref<string>("");
-const selectedStat = ref<SchoolTrainableStat>("atk");
+const selectedStat = ref<TrainingProgramTrainableStat>("atk");
 
 watch(
   gladiators,
@@ -115,7 +117,10 @@ onUnmounted(() => {
 });
 
 const cooldownRemaining = (gladiator: Gladiator) =>
-  schoolUpgradeCooldownRemainingMs(gladiator.lastSchoolUpgradeAt, now.value);
+  trainingProgramUpgradeCooldownRemainingMs(
+    gladiator.lastTrainingProgramUpgradeAt,
+    now.value,
+  );
 
 const formatCooldown = (ms: number) => {
   const totalMinutes = Math.ceil(ms / 60000);
@@ -140,7 +145,7 @@ const upgradeGladiator = () => {
     return;
   const gladiator = userData.value.gladiators[selectedGladiatorId.value];
   if (!gladiator || cooldownRemaining(gladiator) > 0) return;
-  const stats = applySchoolUpgrade(
+  const stats = applyTrainingProgramUpgrade(
     gladiator.stats,
     selectedStat.value,
     level.value,
@@ -156,7 +161,7 @@ const upgradeGladiator = () => {
         [gladiator.id]: {
           ...gladiator,
           stats,
-          lastSchoolUpgradeAt: Timestamp.now(),
+          lastTrainingProgramUpgradeAt: Timestamp.now(),
         },
       },
     },
@@ -164,7 +169,7 @@ const upgradeGladiator = () => {
   );
 };
 
-const upgradeSchool = () => {
+const upgradeTrainingProgram = () => {
   if (!userData.value || gold.value < upgradeCost.value) return;
   updateUserData(
     {
@@ -174,8 +179,8 @@ const upgradeSchool = () => {
       },
       buildings: {
         ...userData.value.buildings,
-        school: {
-          ...userData.value.buildings.school,
+        trainingProgram: {
+          ...userData.value.buildings.trainingProgram,
           level: level.value + 1,
         },
       },

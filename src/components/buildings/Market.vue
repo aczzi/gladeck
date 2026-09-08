@@ -4,9 +4,6 @@
       <span><i class="bi bi-shop" /> Market - Level {{ level }}</span>
       <div class="d-flex gap-2">
         <span class="badge bg-secondary"
-          >{{ gladiatorCount }}/{{ capacity }} gladiators</span
-        >
-        <span class="badge bg-secondary"
           >{{ dailyTradesLeft }} trades left today</span
         >
       </div>
@@ -35,7 +32,7 @@
               :key="gladiator.id"
               :value="gladiator.id"
             >
-              {{ gladiator.name }} ({{ sellValue(gladiator) }} gold)
+              {{ gladiator.name }} ({{ sellValue(gladiator) }} Gold)
             </option>
           </select>
         </div>
@@ -54,7 +51,7 @@
         :disabled="gold < upgradeCost"
         @click="upgrade"
       >
-        <i class="bi bi-arrow-up-circle" /> Upgrade ({{ upgradeCost }} gold)
+        Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
       </button>
     </div>
   </div>
@@ -68,6 +65,7 @@ import {
   buildingUpgradeCost,
   barracksCapacity,
   createGladiator,
+  gladiatorSellValue,
 } from "@/core/game/gameRules";
 import type { Gladiator } from "@/core/game/types";
 
@@ -104,10 +102,8 @@ watch(
   { immediate: true },
 );
 
-const sellValue = (gladiator: Gladiator): number => {
-  const { atk, luck, hpMax, def } = gladiator.stats;
-  return Math.round((atk * 1.2 + def * 1.2 + luck * 1.1) / 3);
-};
+const sellValue = (gladiator: Gladiator): number =>
+  gladiatorSellValue(gladiator.stats, gladiator.battlesFought);
 
 const recruit = () => {
   if (

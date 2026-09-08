@@ -30,8 +30,8 @@ export const DODGE_CHANCE_CAP = 0.2;
 export const CRIT_MULTIPLIER = 1.5;
 export const VICTORY_GOLD_REWARD = 50;
 
-// A given gladiator can only be upgraded at the school once every 2h.
-export const SCHOOL_UPGRADE_COOLDOWN_MS = 30 * 60 * 1000;
+// A given gladiator can only be upgraded at the Training Program once every 30 min.
+export const TRAINING_PROGRAM_UPGRADE_COOLDOWN_MS = 30 * 60 * 1000;
 // A gladiator can only be healed once every 30 minutes.
 export const INFIRMARY_HEAL_COOLDOWN_MS = 30 * 60 * 1000;
 // Gold cost of a single heal action.
@@ -39,14 +39,14 @@ export const INFIRMARY_HEAL_COST = 20;
 
 // ====== §3 Roster & placement ======
 
-// Attacker boosts ATK/LUCK by 10%, penalizes HP/DEF by 10%.
-// Defender does the opposite.
+// DPS boosts ATK/LUCK by 10%, penalizes HP/DEF by 10%.
+// Tank does the opposite.
 export function applyLineModifiers(
   stats: GladiatorStats,
   line: Line,
 ): GladiatorStats {
-  const atkLuckMult = line === "attacker" ? 1.1 : 0.9;
-  const hpDefMult = line === "attacker" ? 0.9 : 1.1;
+  const atkLuckMult = line === "dps" ? 1.1 : 0.9;
+  const hpDefMult = line === "dps" ? 0.9 : 1.1;
   return {
     atk: stats.atk * atkLuckMult,
     luck: stats.luck * atkLuckMult,
@@ -130,7 +130,7 @@ export function computeCombatUnits(
 
 // Splits the rival budget across `count` individual rival gladiators, each
 // getting its own random share of the budget spread randomly over its 4
-// stats, and alternating Attacker/Defender like a real roster.
+// stats, and alternating DPS/Tank like a real roster.
 //
 // Weights are `RIVAL_STAT_WEIGHT_BASELINE + Math.random()` rather than a
 // bare Math.random(): pure Math.random() weights let a unit's share collapse
@@ -167,7 +167,7 @@ export function distributeRivalBudget(
     return {
       id: `rival-${i}`,
       name: `Rival Gladiator ${i + 1}`,
-      line: i % 2 === 0 ? "attacker" : "defender",
+      line: i % 2 === 0 ? "dps" : "tank",
       atk,
       luck,
       def,
@@ -379,29 +379,29 @@ export function barracksCapacity(level: number): number {
   return Math.floor(6 * Math.pow(1.35, level - 1));
 }
 
-// School: bonus % scales with level.
-export function schoolBonusPercent(level: number): number {
+// Training Program: bonus % scales with level.
+export function trainingProgramBonusPercent(level: number): number {
   return 5 + level * 2; // e.g. level 1 -> +7%, level 5 -> +15%
 }
 
-export function schoolUpgradeCooldownRemainingMs(
+export function trainingProgramUpgradeCooldownRemainingMs(
   lastUpgradeAt: Timestamp | undefined,
   now: number = Date.now(),
 ): number {
   if (!lastUpgradeAt) return 0;
   const elapsed = now - lastUpgradeAt.toMillis();
-  return Math.max(0, SCHOOL_UPGRADE_COOLDOWN_MS - elapsed);
+  return Math.max(0, TRAINING_PROGRAM_UPGRADE_COOLDOWN_MS - elapsed);
 }
 
-// Only Attack and Defense can be trained at the school.
-export type SchoolTrainableStat = "atk" | "def";
+// Only Attack and Defense can be trained at the Training Program.
+export type TrainingProgramTrainableStat = "atk" | "def";
 
-export function applySchoolUpgrade(
+export function applyTrainingProgramUpgrade(
   stats: GladiatorStats,
-  statKey: SchoolTrainableStat,
-  schoolLevel: number,
+  statKey: TrainingProgramTrainableStat,
+  trainingProgramLevel: number,
 ): GladiatorStats {
-  const bonus = schoolBonusPercent(schoolLevel);
+  const bonus = trainingProgramBonusPercent(trainingProgramLevel);
   const boosted = { ...stats };
   const current = boosted[statKey];
   boosted[statKey] = Math.min(STAT_MAX, current * (1 + bonus / 100));
@@ -446,6 +446,81 @@ export function buildingUpgradeCost(level: number): number {
   return 100 * level * level;
 }
 
+// ====== Gladiator experience & value ======
+
+// Veteran gladiators grow stronger with every fight survived: a small
+// permanent bump to Attack/Defense/Luck on top of whatever Training Program
+// upgrades already gave them, applied the same multiplicative way as
+// applyTrainingProgramUpgrade. A gladiator that dies is removed from the
+// roster (Arena.vue), so this only ever rewards survivors.
+export const EXPERIENCE_BONUS_PER_FIGHT_PERCENT = 1;
+
+export function applyExperienceGain(stats: GladiatorStats): GladiatorStats {
+  const mult = 1 + EXPERIENCE_BONUS_PER_FIGHT_PERCENT / 100;
+  return {
+    ...stats,
+    atk: Math.min(STAT_MAX, stats.atk * mult),
+    def: Math.min(STAT_MAX, stats.def * mult),
+    luck: Math.min(STAT_MAX, stats.luck * mult),
+  };
+}
+
+// A simple, at-a-glance strength score so the camp UI can highlight and
+// sort the gladiators worth training up and keeping around rather than
+// selling off. Battle record counts on top of raw stats: a fight survived
+// already grows the stats a little via applyExperienceGain, but this flat
+// per-fight bonus makes the veteran status itself visibly pay off in value,
+// not just the marginal stat gain.
+export const POWER_PER_BATTLE_FOUGHT = 2;
+
+export function gladiatorPower(
+  stats: GladiatorStats,
+  battlesFought: number = 0,
+): number {
+  return Math.round(
+    stats.atk +
+      stats.def +
+      stats.luck +
+      stats.hpMax +
+      battlesFought * POWER_PER_BATTLE_FOUGHT,
+  );
+}
+
+export type GladiatorPowerTier = "rookie" | "veteran" | "elite" | "legend";
+
+export function gladiatorPowerTier(power: number): GladiatorPowerTier {
+  if (power >= 320) return "legend";
+  if (power >= 240) return "elite";
+  if (power >= 160) return "veteran";
+  return "rookie";
+}
+
+// Market sell price: base value from raw combat stats, plus a flat bonus
+// per battle won - a battle-tested veteran fetches more than a fresh
+// recruit with identical stats. The whole thing is then scaled by the
+// gladiator's power tier, steeply, so training investment actually pays
+// off at resale instead of being a pure sink (see gladiatorPowerTier) -
+// crossing into a higher badge is what makes the training worth it, not
+// just the raw stat gain.
+export const SELL_VALUE_PER_BATTLE_FOUGHT_GOLD = 2;
+
+export const SELL_VALUE_TIER_MULTIPLIER: Record<GladiatorPowerTier, number> = {
+  rookie: 1,
+  veteran: 3,
+  elite: 8,
+  legend: 10,
+};
+
+export function gladiatorSellValue(
+  stats: GladiatorStats,
+  battlesFought: number = 0,
+): number {
+  const statValue = (stats.atk * 1.2 + stats.def * 1.2 + stats.luck * 1.1) / 3;
+  const base = statValue + battlesFought * SELL_VALUE_PER_BATTLE_FOUGHT_GOLD;
+  const tier = gladiatorPowerTier(gladiatorPower(stats, battlesFought));
+  return Math.round(base * SELL_VALUE_TIER_MULTIPLIER[tier]);
+}
+
 // ====== Gladiator generation ======
 // Base stat distribution for a newly recruited gladiator is an open point
 // (ROADMAP.md §9) - uniform range is used as a placeholder.
@@ -476,6 +551,7 @@ export function createGladiator(
     name,
     stats: generateRandomGladiatorStats(),
     injured: false,
+    battlesFought: 0,
   };
 }
 
@@ -497,7 +573,7 @@ export const startBuildings: Buildings = {
     luckBoostAvailable: false,
   },
   barracks: { level: 1 },
-  school: { level: 1 },
+  trainingProgram: { level: 1 },
   infirmary: { level: 1 },
   market: { level: 1, dailyTradesLeft: marketDailyTrades(1) },
 };

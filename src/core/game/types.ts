@@ -2,7 +2,7 @@
 // from this file for consistency (see .github/copilot-instructions.md).
 import type { Timestamp } from "firebase/firestore";
 
-export type Line = "attacker" | "defender";
+export type Line = "dps" | "tank";
 
 // Every gladiator stat is stored on a 0-100 scale (ROADMAP.md §2).
 export interface GladiatorStats {
@@ -18,14 +18,15 @@ export interface Gladiator {
   name: string;
   stats: GladiatorStats;
   injured: boolean;
+  battlesFought: number;
   lastHealedAt?: Timestamp;
-  lastSchoolUpgradeAt?: Timestamp;
+  lastTrainingProgramUpgradeAt?: Timestamp;
 }
 
 export type BuildingKey =
   | "fanDonation"
   | "barracks"
-  | "school"
+  | "trainingProgram"
   | "infirmary"
   | "market";
 
@@ -43,7 +44,7 @@ export interface BarracksBuilding {
   level: number;
 }
 
-export interface SchoolBuilding {
+export interface TrainingProgramBuilding {
   level: number;
 }
 
@@ -59,7 +60,7 @@ export interface MarketBuilding {
 export interface Buildings {
   fanDonation: FanDonationBuilding;
   barracks: BarracksBuilding;
-  school: SchoolBuilding;
+  trainingProgram: TrainingProgramBuilding;
   infirmary: InfirmaryBuilding;
   market: MarketBuilding;
 }

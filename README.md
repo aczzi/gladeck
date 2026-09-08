@@ -17,7 +17,7 @@ npm run dev
 npm run prettier
 ```
 
-## GitHub Firebase Workflow  
+## GitHub Firebase Workflow
 
 ```sh
 npm install -g firebase-tools

@@ -68,14 +68,14 @@ export const FirebaseCallTracker = {
 };
 
 export const firebaseConfig = {
-  "projectId": "gladeck-2000",
-  "appId": "1:482655840297:web:cfacbef49991aa65e0d438",
-  "storageBucket": "gladeck-2000.firebasestorage.app",
-  "apiKey": "AIzaSyDfIZstCEjDbY74kXHXhW62UoLKV4jpGfs",
-  "authDomain": "gladeck-2000.firebaseapp.com",
-  "messagingSenderId": "482655840297",
-  "projectNumber": "482655840297",
-  "version": "2"
+  projectId: "gladeck-2000",
+  appId: "1:482655840297:web:cfacbef49991aa65e0d438",
+  storageBucket: "gladeck-2000.firebasestorage.app",
+  apiKey: "AIzaSyDfIZstCEjDbY74kXHXhW62UoLKV4jpGfs",
+  authDomain: "gladeck-2000.firebaseapp.com",
+  messagingSenderId: "482655840297",
+  projectNumber: "482655840297",
+  version: "2",
 };
 
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
