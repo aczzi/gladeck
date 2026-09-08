@@ -11,40 +11,42 @@ import type {
   UserData,
   Line,
   TeamStats,
+  CombatUnit,
   CombatResult,
   CombatLogEntry,
 } from "@/core/game/types";
 
-// ====== Constants ======
-export const BASE_SLOTS = 6;
-export const SLOTS_PER_LEVEL = 2;
+// There is no separate combat roster: every gladiator in the camp is
+// eligible, and GLADIATORS_PER_BATTLE of them are drawn at random per fight.
 export const GLADIATORS_PER_BATTLE = 4;
 export const STAT_MIN = 0;
 export const STAT_MAX = 100;
 
-// ====== §2 Trainer progression ======
+// Crit chance grows with the attacker's Luck, capped at 30%.
+// Dodge chance grows with the target's Luck, capped at 20% - lower than
+// crit so a lucky attacker still tends to come out ahead of a lucky target.
+export const CRIT_CHANCE_CAP = 0.3;
+export const DODGE_CHANCE_CAP = 0.2;
+export const CRIT_MULTIPLIER = 1.5;
+export const VICTORY_GOLD_REWARD = 50;
 
-// Slots Max = 6 + (Level - 1) * 2
-export function getMaxSlots(level: number): number {
-  return BASE_SLOTS + (level - 1) * SLOTS_PER_LEVEL;
-}
-
-// Level-up threshold - open point in ROADMAP.md, tune during Phase 6 balancing.
-export const RANK_POINTS_PER_LEVEL = 100;
-export function computeLevelForRankPoints(rankPoints: number): number {
-  return 1 + Math.floor(rankPoints / RANK_POINTS_PER_LEVEL);
-}
+// A given gladiator can only be upgraded at the school once every 2h.
+export const SCHOOL_UPGRADE_COOLDOWN_MS = 30 * 60 * 1000;
+// A gladiator can only be healed once every 30 minutes.
+export const INFIRMARY_HEAL_COOLDOWN_MS = 30 * 60 * 1000;
+// Gold cost of a single heal action.
+export const INFIRMARY_HEAL_COST = 20;
 
 // ====== §3 Roster & placement ======
 
-// Frontline boosts ATK/LUCK by 10%, penalizes HP/DEF by 10%.
-// Backline does the opposite.
+// Attacker boosts ATK/LUCK by 10%, penalizes HP/DEF by 10%.
+// Defender does the opposite.
 export function applyLineModifiers(
   stats: GladiatorStats,
   line: Line,
 ): GladiatorStats {
-  const atkLuckMult = line === "frontline" ? 1.1 : 0.9;
-  const hpDefMult = line === "frontline" ? 0.9 : 1.1;
+  const atkLuckMult = line === "attacker" ? 1.1 : 0.9;
+  const hpDefMult = line === "attacker" ? 0.9 : 1.1;
   return {
     atk: stats.atk * atkLuckMult,
     luck: stats.luck * atkLuckMult,
@@ -74,22 +76,105 @@ export function computeTeamStats(
 
 // ====== §4.1 Rival matchmaking - point budget ======
 
-// Rival Budget = (Sum of Trainer Stats) * (0.85 + RankPoints / 1000)
+// Rival Budget = (Sum of Trainer Stats) * mult, mult ramping from
+// RIVAL_BUDGET_FLOOR up to RIVAL_BUDGET_CAP as RankPoints grow.
+// resolveCombat plays out as ~40 individual hits per battle, so with more
+// than a handful of rank points, small budget edges compound into a near-
+// certain outcome instead of a close fight (variance from crit/dodge/luck
+// rolls per hit gets washed out by the sheer number of hits). Balance
+// simulation showed the fair-fight zone sits in a narrow band just under
+// budget parity, so the cap is kept below 1.0 rather than let rivals reach
+// or exceed the trainer's own stat total.
+export const RIVAL_BUDGET_FLOOR = 0.85;
+export const RIVAL_BUDGET_CAP = 0.975;
+export const RIVAL_BUDGET_GROWTH_DIVISOR = 3000;
+
 export function computeRivalBudget(
   trainerTeam: TeamStats,
   rankPoints: number,
 ): number {
   const trainerStatSum =
     trainerTeam.atk + trainerTeam.luck + trainerTeam.hp + trainerTeam.def;
-  return trainerStatSum * (0.85 + rankPoints / 1000);
+  const mult = Math.min(
+    RIVAL_BUDGET_CAP,
+    RIVAL_BUDGET_FLOOR + rankPoints / RIVAL_BUDGET_GROWTH_DIVISOR,
+  );
+  return trainerStatSum * mult;
 }
 
-// Randomly distributes the rival budget across the 4 stats.
-export function distributeRivalBudget(budget: number): TeamStats {
-  const weights = [Math.random(), Math.random(), Math.random(), Math.random()];
-  const weightSum = weights.reduce((a, b) => a + b, 0);
-  const [atk, luck, hp, def] = weights.map((w) => (w / weightSum) * budget);
-  return { atk, luck, hp, def };
+// Builds the individually-tracked fighters for the trainer's side, with line
+// modifiers already baked in (ROADMAP.md §3/§4.5). Replaces the old
+// team-wide HP pool with one HP total per gladiator.
+export function computeCombatUnits(
+  sentGladiators: {
+    id: string;
+    name: string;
+    stats: GladiatorStats;
+    line: Line;
+  }[],
+): CombatUnit[] {
+  return sentGladiators.map(({ id, name, stats, line }) => {
+    const mod = applyLineModifiers(stats, line);
+    return {
+      id,
+      name,
+      line,
+      atk: mod.atk,
+      luck: mod.luck,
+      def: mod.def,
+      initialHp: mod.hpCurrent,
+      hpCurrent: mod.hpCurrent,
+    };
+  });
+}
+
+// Splits the rival budget across `count` individual rival gladiators, each
+// getting its own random share of the budget spread randomly over its 4
+// stats, and alternating Attacker/Defender like a real roster.
+//
+// Weights are `RIVAL_STAT_WEIGHT_BASELINE + Math.random()` rather than a
+// bare Math.random(): pure Math.random() weights let a unit's share collapse
+// toward 0 on some stats, which regularly produced degenerate rivals (an
+// all-DEF/HP "tank" with near-zero ATK/LUCK, or the reverse glass cannon).
+// Because computeEffectiveDamage has no diminishing returns on DEF, those
+// tanks were effectively unkillable and won fights on the MAX_ROUNDS HP
+// tie-break alone. The baseline keeps every stat/unit share within a
+// bounded range of the even split while still leaving room for variety.
+export const RIVAL_STAT_WEIGHT_BASELINE = 1.5;
+
+export function distributeRivalBudget(
+  budget: number,
+  count: number,
+): CombatUnit[] {
+  const shareWeights = Array.from(
+    { length: count },
+    () => RIVAL_STAT_WEIGHT_BASELINE + Math.random(),
+  );
+  const shareSum = shareWeights.reduce((a, b) => a + b, 0);
+
+  return shareWeights.map((share, i) => {
+    const unitBudget = (share / shareSum) * budget;
+    const statWeights = [
+      RIVAL_STAT_WEIGHT_BASELINE + Math.random(),
+      RIVAL_STAT_WEIGHT_BASELINE + Math.random(),
+      RIVAL_STAT_WEIGHT_BASELINE + Math.random(),
+      RIVAL_STAT_WEIGHT_BASELINE + Math.random(),
+    ];
+    const statSum = statWeights.reduce((a, b) => a + b, 0);
+    const [atk, luck, hp, def] = statWeights.map(
+      (w) => (w / statSum) * unitBudget,
+    );
+    return {
+      id: `rival-${i}`,
+      name: `Rival Gladiator ${i + 1}`,
+      line: i % 2 === 0 ? "attacker" : "defender",
+      atk,
+      luck,
+      def,
+      initialHp: hp,
+      hpCurrent: hp,
+    } as CombatUnit;
+  });
 }
 
 // ====== §4.2 Initiative ======
@@ -108,7 +193,7 @@ export function rollLuck(luck: number): number {
   return luck * 0.25 + Math.random() * (luck * 0.75);
 }
 
-// ====== §4.4 Damage calculation (anti-negative floor) ======
+// ====== §4.4 Damage calculation (anti-negative floor, crit & dodge) ======
 
 // Damage = max((ATK + LuckRoll) - (DEF_target + LuckRoll_target), ATK * 0.05)
 export function computeEffectiveDamage(
@@ -122,96 +207,127 @@ export function computeEffectiveDamage(
   return Math.max(raw, floor);
 }
 
-// ====== §4.5 Turn resolution ======
+export function computeCritChance(attackerLuck: number): number {
+  return Math.min(CRIT_CHANCE_CAP, attackerLuck / 300);
+}
 
-// Flat gold reward for winning a fight, on top of the wager won back.
-export const VICTORY_GOLD_REWARD = 50;
+export function computeDodgeChance(targetLuck: number): number {
+  return Math.min(DODGE_CHANCE_CAP, targetLuck / 500);
+}
+
+function pickTarget(defenders: CombatUnit[]): CombatUnit | null {
+  const alive = defenders.filter((u) => u.hpCurrent > 0);
+  if (alive.length === 0) return null;
+  return alive[uniformRandInt(alive.length)];
+}
 
 export function resolveCombat(
-  trainerTeam: TeamStats,
-  rivalTeam: TeamStats,
+  trainerUnits: CombatUnit[],
+  rivalUnits: CombatUnit[],
 ): CombatResult {
-  const trainerInitialHp = trainerTeam.hp;
-  let trainerHp = trainerTeam.hp;
-  let rivalHp = rivalTeam.hp;
+  const trainer = trainerUnits.map((u) => ({ ...u }));
+  const rival = rivalUnits.map((u) => ({ ...u }));
   const log: CombatLogEntry[] = [];
 
-  const firstAttacker = determineInitiative(trainerTeam.luck, rivalTeam.luck);
+  const trainerLuck = trainer.reduce((sum, u) => sum + u.luck, 0);
+  const rivalLuck = rival.reduce((sum, u) => sum + u.luck, 0);
+  const firstSide = determineInitiative(trainerLuck, rivalLuck);
+  const rivalStatSum = rival.reduce(
+    (sum, u) => sum + u.atk + u.luck + u.def + u.initialHp,
+    0,
+  );
+
   let turn = 0;
 
-  const trainerAttacks = () => {
-    const damage = computeEffectiveDamage(
-      trainerTeam.atk,
-      rollLuck(trainerTeam.luck),
-      rivalTeam.def,
-      rollLuck(rivalTeam.luck),
-    );
-    rivalHp = Math.max(0, rivalHp - damage);
-    log.push({ turn, attacker: "trainer", damage, targetHpAfter: rivalHp });
-  };
-
-  const rivalAttacks = () => {
-    const damage = computeEffectiveDamage(
-      rivalTeam.atk,
-      rollLuck(rivalTeam.luck),
-      trainerTeam.def,
-      rollLuck(trainerTeam.luck),
-    );
-    trainerHp = Math.max(0, trainerHp - damage);
-    log.push({ turn, attacker: "rival", damage, targetHpAfter: trainerHp });
-  };
-
-  // Safety cap to guarantee termination even in degenerate stat configurations.
-  const MAX_TURNS = 500;
-  while (trainerHp > 0 && rivalHp > 0 && turn < MAX_TURNS) {
+  const attack = (
+    side: "trainer" | "rival",
+    attacker: CombatUnit,
+    defenders: CombatUnit[],
+  ) => {
+    const target = pickTarget(defenders);
+    if (!target) return;
     turn++;
-    if (firstAttacker === "trainer") {
-      if (trainerHp > 0) trainerAttacks();
-      if (rivalHp > 0) rivalAttacks();
-    } else {
-      if (rivalHp > 0) rivalAttacks();
-      if (trainerHp > 0) trainerAttacks();
+
+    const dodged = Math.random() < computeDodgeChance(target.luck);
+    let damage = 0;
+    let crit = false;
+    if (!dodged) {
+      crit = Math.random() < computeCritChance(attacker.luck);
+      damage = computeEffectiveDamage(
+        attacker.atk,
+        rollLuck(attacker.luck),
+        target.def,
+        rollLuck(target.luck),
+      );
+      if (crit) damage *= CRIT_MULTIPLIER;
+      target.hpCurrent = Math.max(0, target.hpCurrent - damage);
+    }
+
+    log.push({
+      turn,
+      attacker: side,
+      attackerName: attacker.name,
+      targetName: target.name,
+      damage,
+      targetHpAfter: target.hpCurrent,
+      crit,
+      dodged,
+      targetDefeated: target.hpCurrent <= 0,
+    });
+  };
+
+  const alive = (units: CombatUnit[]) => units.some((u) => u.hpCurrent > 0);
+  // Each round, every living gladiator attacks once, initiative side first.
+  const sides: ["trainer" | "rival", CombatUnit[], CombatUnit[]][] =
+    firstSide === "trainer"
+      ? [
+          ["trainer", trainer, rival],
+          ["rival", rival, trainer],
+        ]
+      : [
+          ["rival", rival, trainer],
+          ["trainer", trainer, rival],
+        ];
+
+  const MAX_ROUNDS = 10;
+
+  let round = 0;
+  while (alive(trainer) && alive(rival) && round < MAX_ROUNDS) {
+    round++;
+    for (const [side, attackers, defenders] of sides) {
+      for (const attacker of attackers) {
+        if (attacker.hpCurrent <= 0) continue;
+        if (!alive(defenders)) break;
+        attack(side, attacker, defenders);
+      }
     }
   }
 
-  const victory = rivalHp <= 0 && trainerHp > 0;
-  const rivalStatSum =
-    rivalTeam.atk + rivalTeam.luck + rivalTeam.hp + rivalTeam.def;
+  const sumHp = (units: CombatUnit[]) =>
+    units.reduce((sum, u) => sum + u.hpCurrent, 0);
+
+  let victory: boolean;
+  if (!alive(rival)) {
+    victory = alive(trainer);
+  } else if (!alive(trainer)) {
+    victory = false;
+  } else {
+    // Round limit reached with both sides still standing.
+    victory = sumHp(trainer) > sumHp(rival);
+  }
 
   return {
     victory,
     log,
-    trainerFinalHp: trainerHp,
-    trainerInitialHp,
-    rivalTeam,
+    trainerUnits: trainer.map((u) => ({
+      id: u.id,
+      initialHp: u.initialHp,
+      hpCurrent: u.hpCurrent,
+    })),
     rankPointsGained: victory ? Math.round(10 + rivalStatSum / 50) : 0,
     goldGained: victory ? VICTORY_GOLD_REWARD : 0,
   };
 }
-
-// ====== §5 Post-combat resolution ======
-
-// Attrition ratio: R = Team Final HP / Team Initial HP, applied to each
-// surviving gladiator's current HP.
-export function computeAttritionRatio(
-  finalHp: number,
-  initialHp: number,
-): number {
-  if (initialHp <= 0) return 0;
-  return Math.max(0, Math.min(1, finalHp / initialHp));
-}
-
-export function applyAttrition(
-  stats: GladiatorStats,
-  ratio: number,
-): GladiatorStats {
-  const hpCurrent = stats.hpMax * ratio;
-  return {
-    ...stats,
-    hpCurrent,
-  };
-}
-
 // ====== §6 Buildings & economy ======
 
 // Fan donation: Resources/Day = Base * (1 + Level * 0.5)
@@ -229,6 +345,35 @@ export function fanDonationGoldSinceLastCollection(
   return Math.floor(fanDonationGoldPerDay(level) * elapsedDays);
 }
 
+// Fan donation also rolls, at most once every 24h, for a Luck Boost the
+// trainer can hand to any one gladiator. The roll itself (not just its
+// value) is gated by level: chance grows from 15% at level 1 by +5%/level,
+// capped at 100%. The boost's magnitude stays flat (+1 Luck) regardless of
+// level - only the odds of getting one improve.
+export const LUCK_BOOST_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+export const LUCK_BOOST_VALUE = 1;
+
+export function luckBoostChance(level: number): number {
+  return Math.min(1, 0.1 + level * 0.05);
+}
+
+export function luckBoostCooldownRemainingMs(
+  lastRolledAt: Timestamp | undefined,
+  now: number = Date.now(),
+): number {
+  if (!lastRolledAt) return 0;
+  const elapsed = now - lastRolledAt.toMillis();
+  return Math.max(0, LUCK_BOOST_COOLDOWN_MS - elapsed);
+}
+
+export function rollLuckBoost(level: number): boolean {
+  return Math.random() < luckBoostChance(level);
+}
+
+export function applyLuckBoost(stats: GladiatorStats): GladiatorStats {
+  return { ...stats, luck: Math.min(STAT_MAX, stats.luck + LUCK_BOOST_VALUE) };
+}
+
 // Barracks: Storage capacity = floor(6 * 1.35^(Level-1))
 export function barracksCapacity(level: number): number {
   return Math.floor(6 * Math.pow(1.35, level - 1));
@@ -238,9 +383,6 @@ export function barracksCapacity(level: number): number {
 export function schoolBonusPercent(level: number): number {
   return 5 + level * 2; // e.g. level 1 -> +7%, level 5 -> +15%
 }
-
-// A given gladiator can only be upgraded at the school once every 2h.
-export const SCHOOL_UPGRADE_COOLDOWN_MS = 2 * 60 * 60 * 1000;
 
 export function schoolUpgradeCooldownRemainingMs(
   lastUpgradeAt: Timestamp | undefined,
@@ -270,12 +412,6 @@ export function applySchoolUpgrade(
 export function infirmaryHealPerHour(level: number): number {
   return 0.1 + level * 0.05;
 }
-
-// A gladiator can only be healed once every 30 minutes.
-export const INFIRMARY_HEAL_COOLDOWN_MS = 30 * 60 * 1000;
-
-// Gold cost of a single heal action.
-export const INFIRMARY_HEAL_COST = 20;
 
 export function infirmaryHealCooldownRemainingMs(
   lastHealedAt: Timestamp | undefined,
@@ -314,11 +450,12 @@ export function buildingUpgradeCost(level: number): number {
 // Base stat distribution for a newly recruited gladiator is an open point
 // (ROADMAP.md §9) - uniform range is used as a placeholder.
 export function generateRandomGladiatorStats(): GladiatorStats {
-  const hp = 20 + uniformRandInt(41); // 20-60
+  const m = 20;
+  const hp = 20 + uniformRandInt(m);
   return {
-    atk: 20 + uniformRandInt(41),
-    def: 20 + uniformRandInt(41),
-    luck: 20 + uniformRandInt(41),
+    atk: 20 + uniformRandInt(m),
+    def: 20 + uniformRandInt(m),
+    luck: 15 + uniformRandInt(m),
     hpMax: hp,
     hpCurrent: hp,
   };
@@ -338,25 +475,27 @@ export function createGladiator(
     id: `${Date.now()}-${gladiatorIdCounter}-${uniformRandInt(1000)}`,
     name,
     stats: generateRandomGladiatorStats(),
-    inDeck: false,
     injured: false,
   };
 }
 
-// Send 4 gladiators at random from the trainer's active roster into combat.
+// Send 4 gladiators at random from the trainer's whole camp into combat -
+// there is no separate "active roster" to curate, every recruited gladiator
+// is eligible.
 export function sendGladiatorsToCombat(
   gladiators: Record<string, Gladiator>,
 ): Gladiator[] {
-  const rosterGladiators = Object.values(gladiators).filter(
-    (gladiator) => gladiator.inDeck,
-  );
-  return pickRandom(rosterGladiators, GLADIATORS_PER_BATTLE);
+  return pickRandom(Object.values(gladiators), GLADIATORS_PER_BATTLE);
 }
 
 // ====== Starting data ======
 
 export const startBuildings: Buildings = {
-  fanDonation: { level: 1, lastCollected: Timestamp.now() },
+  fanDonation: {
+    level: 1,
+    lastCollected: Timestamp.now(),
+    luckBoostAvailable: false,
+  },
   barracks: { level: 1 },
   school: { level: 1 },
   infirmary: { level: 1 },
@@ -365,17 +504,14 @@ export const startBuildings: Buildings = {
 
 export const startProfile: Profile = {
   username: `Trainer${uniformRandInt(1000) + 1}`,
-  level: 1,
   rankPoints: 0,
   gold: 200,
-  maxSlots: getMaxSlots(1),
 };
 
 function buildStartGladiators(): Record<string, Gladiator> {
   const gladiators: Record<string, Gladiator> = {};
   for (let i = 0; i < 4; i++) {
     const gladiator = createGladiator();
-    gladiator.inDeck = true;
     gladiators[gladiator.id] = gladiator;
   }
   return gladiators;

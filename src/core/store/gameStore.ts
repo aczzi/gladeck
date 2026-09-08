@@ -38,10 +38,6 @@ export function useGameStore() {
     () => store.getters.rankPoints,
   );
   const gold: ComputedRef<number> = computed(() => store.getters.gold);
-  const maxSlots: ComputedRef<number> = computed(() => store.getters.maxSlots);
-  const trainerLevel: ComputedRef<number> = computed(
-    () => store.getters.trainerLevel,
-  );
   const isUserDataLoaded: ComputedRef<boolean> = computed(
     () => store.getters.isUserDataLoaded,
   );
@@ -97,8 +93,6 @@ export function useGameStore() {
     error,
     rankPoints,
     gold,
-    maxSlots,
-    trainerLevel,
     isUserDataLoaded,
     hasPendingChanges,
     logout,

@@ -442,7 +442,5 @@ export default createStore({
     hasPendingChanges: (state: RootState) => state.gameState.hasPendingChanges,
     rankPoints: (state: RootState) => state.userData?.profile?.rankPoints || 0,
     gold: (state: RootState) => state.userData?.profile?.gold || 0,
-    maxSlots: (state: RootState) => state.userData?.profile?.maxSlots || 0,
-    trainerLevel: (state: RootState) => state.userData?.profile?.level || 1,
   },
 });

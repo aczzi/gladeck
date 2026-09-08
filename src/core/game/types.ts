@@ -2,7 +2,7 @@
 // from this file for consistency (see .github/copilot-instructions.md).
 import type { Timestamp } from "firebase/firestore";
 
-export type Line = "frontline" | "backline";
+export type Line = "attacker" | "defender";
 
 // Every gladiator stat is stored on a 0-100 scale (ROADMAP.md §2).
 export interface GladiatorStats {
@@ -17,7 +17,6 @@ export interface Gladiator {
   id: string;
   name: string;
   stats: GladiatorStats;
-  inDeck: boolean;
   injured: boolean;
   lastHealedAt?: Timestamp;
   lastSchoolUpgradeAt?: Timestamp;
@@ -33,6 +32,11 @@ export type BuildingKey =
 export interface FanDonationBuilding {
   level: number;
   lastCollected: Timestamp;
+  // Luck Boost: rolled at most once every 24h (see LUCK_BOOST_COOLDOWN_MS),
+  // odds set by building level. lastLuckBoostRolledAt anchors the cooldown
+  // for the *next* roll regardless of whether the current one was claimed.
+  lastLuckBoostRolledAt?: Timestamp;
+  luckBoostAvailable: boolean;
 }
 
 export interface BarracksBuilding {
@@ -62,10 +66,8 @@ export interface Buildings {
 
 export interface Profile {
   username: string;
-  level: number;
   rankPoints: number;
   gold: number;
-  maxSlots: number;
 }
 
 // One of the 4 gladiators sent into a fight, with its line assignment.
@@ -74,7 +76,9 @@ export interface CombatSlot {
   line: Line | null;
 }
 
-// Aggregated team stats after line modifiers are applied (ROADMAP.md §3).
+// Aggregated team stats, used for rival matchmaking budget only
+// (ROADMAP.md §4.1). Individual fights are resolved per-gladiator, see
+// CombatUnit.
 export interface TeamStats {
   atk: number;
   luck: number;
@@ -82,19 +86,38 @@ export interface TeamStats {
   def: number;
 }
 
+// A single fighter as tracked during combat resolution: line modifiers
+// already applied, HP tracked individually rather than pooled per team
+// (ROADMAP.md §4.5).
+export interface CombatUnit {
+  id: string;
+  name: string;
+  line: Line;
+  atk: number;
+  luck: number;
+  def: number;
+  initialHp: number;
+  hpCurrent: number;
+}
+
 export interface CombatLogEntry {
   turn: number;
   attacker: "trainer" | "rival";
+  attackerName: string;
+  targetName: string;
   damage: number;
   targetHpAfter: number;
+  crit: boolean;
+  dodged: boolean;
+  targetDefeated: boolean;
 }
 
 export interface CombatResult {
   victory: boolean;
   log: CombatLogEntry[];
-  trainerFinalHp: number;
-  trainerInitialHp: number;
-  rivalTeam: TeamStats;
+  // Final state of each trainer gladiator sent to combat, for per-gladiator
+  // attrition (ROADMAP.md §5) instead of a single team-wide ratio.
+  trainerUnits: { id: string; initialHp: number; hpCurrent: number }[];
   rankPointsGained: number;
   goldGained: number;
 }

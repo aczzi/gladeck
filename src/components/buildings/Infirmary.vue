@@ -73,7 +73,7 @@ const healCost = INFIRMARY_HEAL_COST;
 
 const injuredGladiators = computed(() =>
   Object.values(userData.value?.gladiators || {}).filter(
-    (gladiator) => gladiator.stats.hpCurrent < gladiator.stats.hpMax,
+    (gladiator) => gladiator.injured,
   ),
 );
 

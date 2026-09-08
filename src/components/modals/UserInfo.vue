@@ -6,10 +6,8 @@
       <li class="list-group-item">
         Status: {{ isActiveUser ? "Active" : "Inactive" }}
       </li>
-      <li class="list-group-item">Level: {{ trainerLevel }}</li>
       <li class="list-group-item">Rank points: {{ rankPoints }}</li>
       <li class="list-group-item">Gold: {{ gold }}</li>
-      <li class="list-group-item">Deck slots: {{ maxSlots }}</li>
       <li class="list-group-item">
         <div class="row g-3 align-items-center">
           <div class="col-auto">Username:</div>
@@ -82,8 +80,6 @@ const {
   userData,
   rankPoints,
   gold,
-  maxSlots,
-  trainerLevel,
   logout,
   deleteUserData,
   updateUserData,

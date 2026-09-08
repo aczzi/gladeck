@@ -22,9 +22,8 @@
               <i class="bi bi-arrow-clockwise" />
             </button>
           </th>
-          <th scope="col">Trainer</th>
+          <th scope="col">Lanista</th>
           <th scope="col">Rank points</th>
-          <th scope="col" class="hide-right">Level</th>
           <th scope="col" class="hide-right">Gold</th>
         </tr>
       </thead>
@@ -42,9 +41,6 @@
             <strong>{{ player.username }}</strong>
           </td>
           <td>{{ formatNumber(player.rankPoints) }}</td>
-          <td class="hide-right">
-            {{ player.level }}
-          </td>
           <td class="hide-right">
             {{ formatNumber(player.gold) }}
           </td>
@@ -74,7 +70,6 @@ interface LeaderboardPlayer {
   id: string;
   username: string;
   rankPoints: number;
-  level: number;
   gold: number;
 }
 
@@ -108,7 +103,6 @@ const fetchLeaderboard = async (forceRefresh = false): Promise<void> => {
         id: doc.id,
         username: data.profile?.username || "Anonymous Trainer",
         rankPoints: data.profile?.rankPoints || 0,
-        level: data.profile?.level || 1,
         gold: data.profile?.gold || 0,
       });
     });

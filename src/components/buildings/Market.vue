@@ -90,9 +90,7 @@ const gladiatorCount = computed(
 );
 
 const sellableGladiators = computed(() =>
-  Object.values(userData.value?.gladiators || {}).filter(
-    (gladiator) => !gladiator.inDeck,
-  ),
+  Object.values(userData.value?.gladiators || {}),
 );
 const selectedGladiatorId = ref<string>("");
 
@@ -108,7 +106,7 @@ watch(
 
 const sellValue = (gladiator: Gladiator): number => {
   const { atk, luck, hpMax, def } = gladiator.stats;
-  return Math.round((atk * 1.2 + def * 1.2 + luck * 0.7 + hpMax * 0.7) / 4);
+  return Math.round((atk * 1.2 + def * 1.2 + luck * 1.1) / 3);
 };
 
 const recruit = () => {
