@@ -3,9 +3,13 @@
     <div class="card-header d-flex justify-content-between align-items-center">
       <span><i class="bi bi-shop" /> Market - Level {{ level }}</span>
       <div class="d-flex gap-2">
-        <span class="badge bg-secondary"
-          >{{ dailyTradesLeft }} trades left today</span
-        >
+        <span class="badge bg-secondary">
+          {{
+            dailyTradesLeft > 0
+              ? `${dailyTradesLeft} trades left today`
+              : `Trades reset in ${formatCooldown(tradesResetCooldownMs)}`
+          }}
+        </span>
       </div>
     </div>
     <div class="card-body">
@@ -58,10 +62,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { Timestamp } from "firebase/firestore";
 import { useGameStore } from "@/core/store/gameStore";
 import {
   marketDailyTrades,
+  marketTradesResetCooldownRemainingMs,
   buildingUpgradeCost,
   barracksCapacity,
   createGladiator,
@@ -79,6 +85,53 @@ const dailyTradesLeft = computed(
 );
 const upgradeCost = computed(() => buildingUpgradeCost(level.value));
 const recruitCost = RECRUIT_COST;
+
+// Ticks every second so the "trades reset in..." countdown stays live.
+const now = ref(Date.now());
+let tickTimer: ReturnType<typeof setInterval> | null = null;
+onMounted(() => {
+  tickTimer = setInterval(() => {
+    now.value = Date.now();
+  }, 1000);
+});
+onUnmounted(() => {
+  if (tickTimer) clearInterval(tickTimer);
+});
+
+const tradesResetCooldownMs = computed(() =>
+  marketTradesResetCooldownRemainingMs(
+    userData.value?.buildings.market.lastTradeReset,
+    now.value,
+  ),
+);
+
+const formatCooldown = (ms: number) => {
+  const totalMinutes = Math.ceil(ms / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}h ${minutes}m`;
+};
+
+// Once the 24h cooldown elapses, silently refill dailyTradesLeft - this is a
+// deterministic daily refresh (unlike the Fan Donation Luck Boost roll), so
+// it doesn't need an explicit player click.
+watch(
+  tradesResetCooldownMs,
+  (remaining) => {
+    if (remaining > 0 || !userData.value) return;
+    updateUserData({
+      buildings: {
+        ...userData.value.buildings,
+        market: {
+          ...userData.value.buildings.market,
+          dailyTradesLeft: marketDailyTrades(level.value),
+          lastTradeReset: Timestamp.now(),
+        },
+      },
+    });
+  },
+  { immediate: true },
+);
 
 const capacity = computed(() =>
   barracksCapacity(userData.value?.buildings.barracks.level || 1),
@@ -169,6 +222,7 @@ const upgrade = () => {
       buildings: {
         ...userData.value.buildings,
         market: {
+          ...userData.value.buildings.market,
           level: level.value + 1,
           dailyTradesLeft: marketDailyTrades(level.value + 1),
         },

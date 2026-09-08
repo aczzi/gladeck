@@ -55,6 +55,9 @@ export interface InfirmaryBuilding {
 export interface MarketBuilding {
   level: number;
   dailyTradesLeft: number;
+  // Anchors the 24h cooldown before dailyTradesLeft refills back to
+  // marketDailyTrades(level).
+  lastTradeReset: Timestamp;
 }
 
 export interface Buildings {

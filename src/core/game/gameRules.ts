@@ -440,6 +440,18 @@ export function marketDailyTrades(level: number): number {
   return 3 + level * 2;
 }
 
+// dailyTradesLeft refills back to marketDailyTrades(level) once every 24h.
+export const MARKET_TRADES_RESET_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+export function marketTradesResetCooldownRemainingMs(
+  lastTradeReset: Timestamp | undefined,
+  now: number = Date.now(),
+): number {
+  if (!lastTradeReset) return 0;
+  const elapsed = now - lastTradeReset.toMillis();
+  return Math.max(0, MARKET_TRADES_RESET_COOLDOWN_MS - elapsed);
+}
+
 // Generic building upgrade cost, shared across all 5 buildings.
 // Placeholder curve - tune during Phase 6 balancing (ROADMAP.md Phase 6).
 export function buildingUpgradeCost(level: number): number {
@@ -575,7 +587,11 @@ export const startBuildings: Buildings = {
   barracks: { level: 1 },
   trainingProgram: { level: 1 },
   infirmary: { level: 1 },
-  market: { level: 1, dailyTradesLeft: marketDailyTrades(1) },
+  market: {
+    level: 1,
+    dailyTradesLeft: marketDailyTrades(1),
+    lastTradeReset: Timestamp.now(),
+  },
 };
 
 export const startProfile: Profile = {
