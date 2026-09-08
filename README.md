@@ -10,7 +10,7 @@ npm install
 
 ```sh
 # Start Firestore emulator
-npm run emulator
+firebase emulators:start --only firestore
 # Start Vite development server
 npm run dev
 # Lint and format code

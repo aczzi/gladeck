@@ -239,8 +239,8 @@ export function schoolBonusPercent(level: number): number {
   return 5 + level * 2; // e.g. level 1 -> +7%, level 5 -> +15%
 }
 
-// A given gladiator can only be upgraded at the school once every 24h.
-export const SCHOOL_UPGRADE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+// A given gladiator can only be upgraded at the school once every 2h.
+export const SCHOOL_UPGRADE_COOLDOWN_MS = 2 * 60 * 60 * 1000;
 
 export function schoolUpgradeCooldownRemainingMs(
   lastUpgradeAt: Timestamp | undefined,

@@ -10,7 +10,7 @@
     </div>
     <div class="card-body">
       <p class="card-text">
-        Ready to collect: <strong>{{ pendingGold }}</strong> gold
+        <strong>{{ pendingGold }}</strong> gold to collect.
       </p>
       <div class="d-flex gap-2">
         <button

@@ -157,7 +157,7 @@
                         :class="{ active: activeTab === 'combat' }"
                         @click="activeTab = 'combat'"
                       >
-                        <i class="bi bi-swords" /> Combat
+                        <i class="bi bi-shield" /> Arena
                       </a>
                     </li>
                   </ul>

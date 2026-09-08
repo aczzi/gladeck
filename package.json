@@ -5,9 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:emulator": "firebase emulators:start --only firestore",
-    "emulator": "firebase emulators:start --only firestore",
-    "emulator:ui": "firebase emulators:start",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.mjs,.ts",

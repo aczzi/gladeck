@@ -10,7 +10,7 @@
       <i class="bi bi-exclamation-triangle" />
       Error loading leaderboard: {{ error }}
     </div>
-    <table v-else-if="players.length > 0" class="table table-responsive">
+    <table v-else-if="players.length > 0" class="table table-responsive table-dark">
       <thead>
         <tr>
           <th scope="col">

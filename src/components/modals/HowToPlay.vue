@@ -1,5 +1,13 @@
 <template>
   <div class="container-fluid">
+    <p>
+      You are a <b>lanista</b>, manager of your own
+      gladiator stable, hungry for gold, glory and the favor of the crowd.
+      Recruit fighters from the slave markets, train them, heal their wounds
+      and send them into the arena to bleed for your name. Every gladiator
+      who falls in the sand can be replaced - your reputation as a trainer
+      cannot.
+    </p>
     <h4>Camp</h4>
     <p>
       Grow five buildings: <b>Fan donation</b> collects gold from your
