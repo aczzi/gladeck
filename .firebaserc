@@ -1,0 +1,9 @@
+{
+  "hosting": {
+    "site": "gladeck-2000",
+    "public": "public"
+  },
+  "projects": {
+    "default": "gladeck-2000"
+  }
+}

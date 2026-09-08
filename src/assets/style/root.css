@@ -1,0 +1,111 @@
+/* ====== Gladiator theme ====== */
+:root {
+  --gladiator-bg: #0a0a0a;
+  --gladiator-bg-alt: #202020;
+  --gladiator-stone: #141312;
+  --gladiator-parchment: #aeaeae;
+  --gladiator-gold: #c9972c;
+  --gladiator-gold-bright: #e0b64d;
+  --gladiator-bronze: #4a3c22;
+  --gladiator-blood: #8b2e2e;
+  --gladiator-steel: #5b6a72;
+  --gladiator-laurel: #6b8e23;
+
+  /* Reskin Bootstrap's own palette so every existing bg-, btn- and badge
+     component inherits the theme without touching each component. */
+  --bs-body-bg: var(--gladiator-bg);
+  --bs-body-color: var(--gladiator-parchment);
+  --bs-dark-rgb: 14, 13, 12;
+  --bs-secondary-rgb: 45, 42, 38;
+  --bs-primary-rgb: 201, 151, 44;
+  --bs-primary: var(--gladiator-gold);
+  --bs-info-rgb: 91, 106, 114;
+  --bs-info: var(--gladiator-steel);
+  --bs-success-rgb: 107, 142, 35;
+  --bs-success: var(--gladiator-laurel);
+  --bs-danger-rgb: 139, 46, 46;
+  --bs-danger: var(--gladiator-blood);
+  --bs-warning-rgb: 201, 151, 44;
+  --bs-warning: var(--gladiator-gold);
+  --bs-border-color: #2a2622;
+  --bs-link-color: var(--gladiator-gold-bright);
+  --bs-link-hover-color: var(--gladiator-parchment);
+}
+
+body {
+  background: radial-gradient(
+    circle at top,
+    var(--gladiator-stone),
+    var(--gladiator-bg-alt)
+  );
+  color: var(--gladiator-parchment);
+}
+
+.bg {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(
+    circle at top,
+    var(--gladiator-stone),
+    var(--gladiator-bg-alt)
+  );
+}
+
+.welcome {
+  text-align: center;
+  padding: 2rem;
+}
+
+.navbar-nav .nav-link.active {
+  font-weight: bold;
+  text-decoration: underline;
+  text-decoration-color: var(--gladiator-gold);
+}
+
+.text-muted {
+  color: #cbb9a0 !important;
+}
+
+/* Inscription-style display type for anything carrying the gladiator look:
+   the arena banner, building/screen titles, and modal headings. */
+.gladiator,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.navbar-brand,
+.card-header,
+.modal-title {
+  font-family: "Cinzel", "Trajan Pro", Georgia, serif;
+  letter-spacing: 0.03em;
+}
+
+.gladiator {
+  color: var(--gladiator-gold-bright);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.card {
+  border-color: var(--bs-border-color);
+}
+
+.card-header {
+  border-bottom-color: var(--gladiator-bronze);
+}
+
+.form-control,
+.form-select {
+  background-color: #000;
+  color: var(--gladiator-parchment);
+  border-color: var(--bs-border-color);
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: #000;
+  color: var(--gladiator-parchment);
+}
