@@ -20,14 +20,16 @@
     <h4>Combat</h4>
     <p>
       There's no roster to curate - before each fight, 4 gladiators are drawn at
-      random from your whole camp and sent into the arena. Place 2 as
-      <b>DPS</b> (+10% Attack/Luck, -10% Health/Defense) and 2 as
-      <b>Tank</b> (+10% Health/Defense, -10% Attack/Luck) - it's a stat
-      trade-off, not a shield: enemy hits can land on anyone at random
+      random from your whole camp and sent into the arena. Place each as
+      <b>DPS</b> (+10% Attack/Luck, -10% Health/Defense), <b>Tank</b> (+10%
+      Health/Defense, -10% Attack/Luck), or <b>Support</b> (no change) - it's
+      a stat trade-off, not a shield: enemy hits can land on anyone at random
       regardless of line. Combat is then resolved automatically, gladiator by
       gladiator, against a rival trainer's team whose strength is matched to
-      your rank. High Luck can also land a critical hit or dodge an incoming
-      attack entirely.
+      your rank based on your gladiators' base stats, before any line
+      trade-off - so your DPS/Tank/Support picks only shape how the fight
+      plays out, never how tough the rival is. High Luck can also land a
+      critical hit or dodge an incoming attack entirely.
     </p>
     <h4>Victory & Defeat</h4>
     <p>

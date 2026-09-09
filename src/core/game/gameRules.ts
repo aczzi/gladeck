@@ -9,7 +9,7 @@ import type {
   Buildings,
   Profile,
   UserData,
-  Line,
+  Attribution,
   TeamStats,
   CombatUnit,
   CombatResult,
@@ -37,54 +37,48 @@ export const INFIRMARY_HEAL_COOLDOWN_MS = 30 * 60 * 1000;
 // Gold cost of a single heal action.
 export const INFIRMARY_HEAL_COST = 20;
 
-// ====== §3 Roster & placement ======
+// ====== §3 Roster & Attribution ======
 
-// DPS boosts ATK/LUCK by 10%, penalizes HP/DEF by 10%.
-// Tank does the opposite.
-export function applyLineModifiers(
+export function applyAttribution(
   stats: GladiatorStats,
-  line: Line,
+  line: Attribution,
 ): GladiatorStats {
-  const atkLuckMult = line === "dps" ? 1.1 : 0.9;
-  const hpDefMult = line === "dps" ? 0.9 : 1.1;
+  if (line === "support") return { ...stats };
+  if (line === "dps") {
+    return {
+      atk: stats.atk * 1.2,
+      luck: stats.luck * 1.1,
+      def: stats.def * 0.9,
+      hpMax: stats.hpMax,
+      hpCurrent: stats.hpCurrent,
+    };
+  }
   return {
-    atk: stats.atk * atkLuckMult,
-    luck: stats.luck * atkLuckMult,
-    hpMax: stats.hpMax * hpDefMult,
-    hpCurrent: stats.hpCurrent * hpDefMult,
-    def: stats.def * hpDefMult,
+    atk: stats.atk * 0.9,
+    luck: stats.luck * 0.9,
+    def: stats.def * 1.2,
+    hpMax: stats.hpMax,
+    hpCurrent: stats.hpCurrent,
   };
 }
 
-// Sums the modified stats of the 4 sent gladiators into team stats (0-400 per stat).
-export function computeTeamStats(
-  sentGladiators: { stats: GladiatorStats; line: Line }[],
+// Sums the *raw*, unmodified stats of the 4 sent gladiators into team
+export function computeBaseTeamStats(
+  sentGladiators: { stats: GladiatorStats }[],
 ): TeamStats {
   return sentGladiators.reduce(
-    (team, { stats, line }) => {
-      const mod = applyLineModifiers(stats, line);
-      return {
-        atk: team.atk + mod.atk,
-        luck: team.luck + mod.luck,
-        hp: team.hp + mod.hpCurrent,
-        def: team.def + mod.def,
-      };
-    },
+    (team, { stats }) => ({
+      atk: team.atk + stats.atk,
+      luck: team.luck + stats.luck,
+      hp: team.hp + stats.hpMax,
+      def: team.def + stats.def,
+    }),
     { atk: 0, luck: 0, hp: 0, def: 0 } as TeamStats,
   );
 }
 
 // ====== §4.1 Rival matchmaking - point budget ======
 
-// Rival Budget = (Sum of Trainer Stats) * mult, mult ramping from
-// RIVAL_BUDGET_FLOOR up to RIVAL_BUDGET_CAP as RankPoints grow.
-// resolveCombat plays out as ~40 individual hits per battle, so with more
-// than a handful of rank points, small budget edges compound into a near-
-// certain outcome instead of a close fight (variance from crit/dodge/luck
-// rolls per hit gets washed out by the sheer number of hits). Balance
-// simulation showed the fair-fight zone sits in a narrow band just under
-// budget parity, so the cap is kept below 1.0 rather than let rivals reach
-// or exceed the trainer's own stat total.
 export const RIVAL_BUDGET_FLOOR = 0.85;
 export const RIVAL_BUDGET_CAP = 0.975;
 export const RIVAL_BUDGET_GROWTH_DIVISOR = 3000;
@@ -102,23 +96,22 @@ export function computeRivalBudget(
   return trainerStatSum * mult;
 }
 
-// Builds the individually-tracked fighters for the trainer's side, with line
-// modifiers already baked in (ROADMAP.md §3/§4.5). Replaces the old
-// team-wide HP pool with one HP total per gladiator.
+// Builds the individually-tracked fighters for the trainer's side
+
 export function computeCombatUnits(
   sentGladiators: {
     id: string;
     name: string;
     stats: GladiatorStats;
-    line: Line;
+    line: Attribution;
   }[],
 ): CombatUnit[] {
   return sentGladiators.map(({ id, name, stats, line }) => {
-    const mod = applyLineModifiers(stats, line);
+    const mod = applyAttribution(stats, line);
     return {
       id,
       name,
-      line,
+      attribution: line,
       atk: mod.atk,
       luck: mod.luck,
       def: mod.def,
@@ -167,7 +160,7 @@ export function distributeRivalBudget(
     return {
       id: `rival-${i}`,
       name: `Rival Gladiator ${i + 1}`,
-      line: i % 2 === 0 ? "dps" : "tank",
+      attribution: i % 2 === 0 ? "dps" : "tank",
       atk,
       luck,
       def,

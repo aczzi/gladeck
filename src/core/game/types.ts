@@ -2,7 +2,7 @@
 // from this file for consistency (see .github/copilot-instructions.md).
 import type { Timestamp } from "firebase/firestore";
 
-export type Line = "dps" | "tank";
+export type Attribution = "dps" | "tank" | "support";
 
 // Attack/Defense/Luck are stored on a 0-200 scale (see STAT_MAX in
 // gameRules.ts, ROADMAP.md §2). HP has no upper bound.
@@ -72,7 +72,7 @@ export interface Profile {
 // One of the 4 gladiators sent into a fight, with its line assignment.
 export interface CombatSlot {
   gladiatorId: string;
-  line: Line | null;
+  line: Attribution | null;
 }
 
 // Aggregated team stats, used for rival matchmaking budget only
@@ -91,7 +91,7 @@ export interface TeamStats {
 export interface CombatUnit {
   id: string;
   name: string;
-  line: Line;
+  attribution: Attribution;
   atk: number;
   luck: number;
   def: number;

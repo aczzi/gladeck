@@ -18,7 +18,8 @@
     <div v-else-if="!result" class="row justify-content-center">
       <div class="col-md-8">
         <h5 class="text-center">
-          Place {{ sentGladiators.length }} gladiators as DPS or Tank
+          Place {{ sentGladiators.length }} gladiators as DPS, Tank or
+          Support
         </h5>
         <div class="row">
           <div
@@ -30,8 +31,7 @@
               <div class="card-body">
                 <h6>{{ gladiator.name }}</h6>
                 <p v-if="placement[gladiator.id]" class="text-info mb-2">
-                  As
-                  {{ placement[gladiator.id] === "dps" ? "DPS" : "Tank" }}: ATK
+                  As {{ roleLabel(placement[gladiator.id]) }}: ATK
                   {{ Math.round(displayedStats(gladiator).atk) }} - DEF
                   {{ Math.round(displayedStats(gladiator).def) }} - LUCK
                   {{ Math.round(displayedStats(gladiator).luck) }}
@@ -61,6 +61,17 @@
                     @click="placement[gladiator.id] = 'tank'"
                   >
                     Tank
+                  </button>
+                  <button
+                    class="btn btn-sm"
+                    :class="
+                      placement[gladiator.id] === 'support'
+                        ? 'btn-secondary'
+                        : 'btn-outline-secondary'
+                    "
+                    @click="placement[gladiator.id] = 'support'"
+                  >
+                    Support
                   </button>
                 </div>
               </div>
@@ -169,15 +180,15 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useGameStore } from "@/core/store/gameStore";
-import type { Gladiator, Line } from "@/core/game/types";
+import type { Gladiator, Attribution } from "@/core/game/types";
 import {
   sendGladiatorsToCombat,
-  computeTeamStats,
+  computeBaseTeamStats,
   computeCombatUnits,
   computeRivalBudget,
   distributeRivalBudget,
   resolveCombat,
-  applyLineModifiers,
+  applyAttribution,
   applyExperienceGain,
 } from "@/core/game/gameRules";
 import type { CombatResult } from "@/core/game/types";
@@ -189,7 +200,7 @@ const canFight = computed(() => {
 });
 
 const sentGladiators = ref<Gladiator[] | null>(null);
-const placement = ref<Record<string, Line | null>>({});
+const placement = ref<Record<string, Attribution | null>>({});
 const result = ref<CombatResult | null>(null);
 const bet = ref(0);
 const lastBet = ref(0);
@@ -204,7 +215,13 @@ const clampBet = () => {
 
 const displayedStats = (gladiator: Gladiator) => {
   const line = placement.value[gladiator.id];
-  return line ? applyLineModifiers(gladiator.stats, line) : gladiator.stats;
+  return line ? applyAttribution(gladiator.stats, line) : gladiator.stats;
+};
+
+const roleLabel = (line: Attribution | null) => {
+  if (line === "dps") return "DPS";
+  if (line === "tank") return "Tank";
+  return "Support";
 };
 
 const placementValid = computed(() => {
@@ -232,9 +249,9 @@ const engage = () => {
     id: gladiator.id,
     name: gladiator.name,
     stats: gladiator.stats,
-    line: placement.value[gladiator.id] as Line,
+    line: placement.value[gladiator.id] as Attribution,
   }));
-  const trainerTeam = computeTeamStats(placedGladiators);
+  const trainerTeam = computeBaseTeamStats(placedGladiators);
   const trainerUnits = computeCombatUnits(placedGladiators);
   const rivalBudget = computeRivalBudget(trainerTeam, rankPoints.value);
   const rivalUnits = distributeRivalBudget(rivalBudget, trainerUnits.length);
