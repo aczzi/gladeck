@@ -13,7 +13,7 @@ Every text in the codebase must be only in English without any emojis.
 - **Store Architecture**: All components communicate with Firestore exclusively through the gameStore (`src/core/store/index.ts`). The store uses an accumulator pattern that batches updates every 25 seconds to minimize Firestore writes. NEVER write directly to Firestore from components or services - always use `updateUserData()` from the gameStore.
 - **Session Management**: The game enforces a single-session policy to prevent cheating (multi-session could allow rollback of strategic combat/deck choices). The `sessionManager` (`src/core/firebase/sessionManager.ts`) automatically kicks out any previous session when a user connects from a new device/window. Multi-session is strictly forbidden.
 - **Data model deviation from ROADMAP.md §7**: buildings and cards are stored as map fields on the single `users/{userId}` document (not Firestore subcollections), so every write flows through the same 25s accumulator. See README.md "Notes on the data model".
-- **Game Systems**: Village (5 buildings: Mine, Barracks, Forge, Infirmary, Market) and Arena (deck draw, Frontline/Backline placement, auto-resolution) are separate top-level screens (`Village.vue`, `Arena.vue`), toggled from `MainView.vue`.
+- **Game Systems**: Village (5 buildings: Mine, Barracks, Forge, Infirmary, Market) and Arena (deck draw, gladiator assignation, auto-resolution) are separate top-level screens (`Village.vue`, `Arena.vue`), toggled from `MainView.vue`.
 
 ## Developer Workflows
 

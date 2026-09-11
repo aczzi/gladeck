@@ -5,9 +5,20 @@
         ><i class="bi bi-heart-pulse-fill" /> Infirmary - Level
         {{ level }}</span
       >
-      <span class="badge bg-secondary"
-        >{{ (healPerHour * 100).toFixed(0) }}% max HP / hour</span
-      >
+      <div class="d-flex gap-2">
+        <span class="badge bg-secondary"
+          >{{ (healPercent * 100).toFixed(0) }}% max HP / heal</span
+        >
+        <span
+          class="badge"
+          :class="
+            restingCount >= restSlots ? 'bg-warning text-dark' : 'bg-secondary'
+          "
+        >
+          <i class="bi bi-moon-stars" /> {{ restingCount }}/{{ restSlots }}
+          rest beds
+        </span>
+      </div>
     </div>
     <div class="card-body">
       <p v-if="injuredGladiators.length === 0" class="text-muted">
@@ -35,7 +46,7 @@
             {{
               cooldownRemaining(gladiator) > 0
                 ? `Cooldown ${formatCooldown(cooldownRemaining(gladiator))}`
-                : `Heal 1h (${healCost} gold)`
+                : `Heal (${healCost} gold)`
             }}
           </button>
         </li>
@@ -57,9 +68,10 @@ import { Timestamp } from "firebase/firestore";
 import { useGameStore } from "@/core/store/gameStore";
 import type { Gladiator } from "@/core/game/types";
 import {
-  infirmaryHealPerHour,
+  infirmaryHealPercent,
   infirmaryHeal,
   infirmaryHealCooldownRemainingMs,
+  infirmaryMaxRestingGladiators,
   INFIRMARY_HEAL_COST,
   buildingUpgradeCost,
 } from "@/core/game/gameRules";
@@ -67,7 +79,13 @@ import {
 const { userData, gold, updateUserData } = useGameStore();
 
 const level = computed(() => userData.value?.buildings.infirmary.level || 1);
-const healPerHour = computed(() => infirmaryHealPerHour(level.value));
+const healPercent = computed(() => infirmaryHealPercent(level.value));
+const restSlots = computed(() => infirmaryMaxRestingGladiators(level.value));
+const restingCount = computed(
+  () =>
+    Object.values(userData.value?.gladiators || {}).filter((g) => g.resting)
+      .length,
+);
 const upgradeCost = computed(() => buildingUpgradeCost(level.value));
 const healCost = INFIRMARY_HEAL_COST;
 
@@ -103,42 +121,38 @@ const heal = (gladiatorId: string) => {
   if (!userData.value || gold.value < healCost) return;
   const gladiator = userData.value.gladiators[gladiatorId];
   if (!gladiator || cooldownRemaining(gladiator) > 0) return;
-  const stats = infirmaryHeal(gladiator.stats, level.value, 1);
+  const stats = infirmaryHeal(gladiator.stats, level.value);
   const injured = stats.hpCurrent < stats.hpMax;
-  updateUserData(
-    {
-      profile: { ...userData.value.profile, gold: gold.value - healCost },
-      gladiators: {
-        ...userData.value.gladiators,
-        [gladiator.id]: {
-          ...gladiator,
-          stats,
-          injured,
-          lastHealedAt: Timestamp.now(),
-        },
+  // Deterministic (no RNG) and already cooldown-gated per gladiator, so a
+  // lost write just means re-clicking heal later - safe to batch normally.
+  updateUserData({
+    profile: { ...userData.value.profile, gold: gold.value - healCost },
+    gladiators: {
+      ...userData.value.gladiators,
+      [gladiator.id]: {
+        ...gladiator,
+        stats,
+        injured,
+        lastHealedAt: Timestamp.now(),
       },
     },
-    { immediate: true },
-  );
+  });
 };
 
 const upgrade = () => {
   if (!userData.value || gold.value < upgradeCost.value) return;
-  updateUserData(
-    {
-      profile: {
-        ...userData.value.profile,
-        gold: gold.value - upgradeCost.value,
-      },
-      buildings: {
-        ...userData.value.buildings,
-        infirmary: {
-          ...userData.value.buildings.infirmary,
-          level: level.value + 1,
-        },
+  updateUserData({
+    profile: {
+      ...userData.value.profile,
+      gold: gold.value - upgradeCost.value,
+    },
+    buildings: {
+      ...userData.value.buildings,
+      infirmary: {
+        ...userData.value.buildings.infirmary,
+        level: level.value + 1,
       },
     },
-    { immediate: true },
-  );
+  });
 };
 </script>

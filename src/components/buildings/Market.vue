@@ -15,7 +15,7 @@
     <div class="card-body">
       <div class="d-flex gap-2 mb-3">
         <button
-          class="btn btn-success"
+          class="btn btn-outline-primary"
           :disabled="
             gold < recruitCost ||
             gladiatorCount >= capacity ||
@@ -69,7 +69,7 @@ import {
   marketDailyTrades,
   marketTradesResetCooldownRemainingMs,
   buildingUpgradeCost,
-  BARRACKS_CAPACITY,
+  barracksCapacity,
   createGladiator,
   gladiatorSellValue,
 } from "@/core/game/gameRules";
@@ -133,13 +133,17 @@ watch(
   { immediate: true },
 );
 
-const capacity = computed(() => BARRACKS_CAPACITY);
+const capacity = computed(() =>
+  barracksCapacity(userData.value?.profile.legacyPoints || 0),
+);
 const gladiatorCount = computed(
   () => Object.keys(userData.value?.gladiators || {}).length,
 );
 
+// Resting gladiators are off duty, not off the roster - they can't be sold
+// while resting.
 const sellableGladiators = computed(() =>
-  Object.values(userData.value?.gladiators || {}),
+  Object.values(userData.value?.gladiators || {}).filter((g) => !g.resting),
 );
 const selectedGladiatorId = ref<string>("");
 
@@ -165,6 +169,9 @@ const recruit = () => {
   )
     return;
   const gladiator = createGladiator();
+  // Immediate on purpose: createGladiator() rolls random stats, and without
+  // this a player could reload before the next batch to keep re-rolling a
+  // recruit's stats for free until they like the result.
   updateUserData(
     {
       profile: { ...userData.value.profile, gold: gold.value - recruitCost },
@@ -189,44 +196,41 @@ const sellGladiator = () => {
   )
     return;
   const gladiator = userData.value.gladiators[selectedGladiatorId.value];
-  if (!gladiator) return;
+  if (!gladiator || gladiator.resting) return;
   const gain = sellValue(gladiator);
   const gladiators = { ...userData.value.gladiators };
   delete gladiators[gladiator.id];
-  updateUserData(
-    {
-      profile: { ...userData.value.profile, gold: gold.value + gain },
-      gladiators,
-      buildings: {
-        ...userData.value.buildings,
-        market: {
-          ...userData.value.buildings.market,
-          dailyTradesLeft: dailyTradesLeft.value - 1,
-        },
+  // Deterministic (no RNG) and already rate-limited by dailyTradesLeft - a
+  // reload before the next batch just un-sells the gladiator (no gold, no
+  // trade spent), not exploitable. Safe to batch normally.
+  updateUserData({
+    profile: { ...userData.value.profile, gold: gold.value + gain },
+    gladiators,
+    buildings: {
+      ...userData.value.buildings,
+      market: {
+        ...userData.value.buildings.market,
+        dailyTradesLeft: dailyTradesLeft.value - 1,
       },
     },
-    { immediate: true },
-  );
+  });
 };
 
 const upgrade = () => {
   if (!userData.value || gold.value < upgradeCost.value) return;
-  updateUserData(
-    {
-      profile: {
-        ...userData.value.profile,
-        gold: gold.value - upgradeCost.value,
-      },
-      buildings: {
-        ...userData.value.buildings,
-        market: {
-          ...userData.value.buildings.market,
-          level: level.value + 1,
-          dailyTradesLeft: marketDailyTrades(level.value + 1),
-        },
+  updateUserData({
+    profile: {
+      ...userData.value.profile,
+      gold: gold.value - upgradeCost.value,
+    },
+    buildings: {
+      ...userData.value.buildings,
+      market: {
+        ...userData.value.buildings.market,
+        level: level.value + 1,
+        dailyTradesLeft: marketDailyTrades(level.value + 1),
       },
     },
-    { immediate: true },
-  );
+  });
 };
 </script>

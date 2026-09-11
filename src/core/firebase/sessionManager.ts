@@ -19,6 +19,7 @@ let sessionListener: Unsubscribe | null = null;
 let isSessionActive = true;
 let onSessionInvalidatedCallback: (() => void) | null = null;
 let updateUserDataCallback: ((data: any) => Promise<void>) | null = null;
+let flushBeforeInvalidationCallback: (() => Promise<void>) | null = null;
 
 // Generate unique session ID
 const generateSessionId = (): string => {
@@ -36,6 +37,17 @@ export const setUpdateUserDataCallback = (
 ): void => {
   updateUserDataCallback = callback;
   devLog("UpdateUserData callback registered for sessionManager");
+};
+
+// Set the callback used to flush any pending accumulated changes one last
+// time, while this session can still write, right before it gets torn down
+// by a conflict. Without this, unsaved progress (gold, combat outcomes,
+// training) is silently discarded the moment another tab/device signs in -
+// see the stopPeriodicUpdates() discard path in store/index.ts.
+export const setFlushBeforeInvalidationCallback = (
+  callback: () => Promise<void>,
+): void => {
+  flushBeforeInvalidationCallback = callback;
 };
 
 // Initialize session for a user
@@ -141,18 +153,37 @@ const listenForSessionConflicts = (
           `Session conflict detected: current: ${sessionId}, new: ${currentSession.sessionId}`,
         );
 
-        isSessionActive = false;
-        if (heartbeatInterval) {
-          clearInterval(heartbeatInterval);
-          heartbeatInterval = null;
-        }
+        // Flush any pending accumulated changes now, while this session is
+        // still marked alive and can still write - only THEN tear it down.
+        // Reversing this order (as before) meant stopPeriodicUpdates()
+        // discarded unflushed progress before the "final" flush attempt
+        // ever got a chance to run.
+        (async () => {
+          try {
+            if (flushBeforeInvalidationCallback) {
+              devLog("Flushing pending updates before session invalidation");
+              await flushBeforeInvalidationCallback();
+            }
+          } catch (error) {
+            devError(
+              "Failed to flush pending updates before invalidation:",
+              error,
+            );
+          } finally {
+            isSessionActive = false;
+            if (heartbeatInterval) {
+              clearInterval(heartbeatInterval);
+              heartbeatInterval = null;
+            }
 
-        if (onSessionInvalidatedCallback) {
-          devLog("Calling session invalidation callback");
-          onSessionInvalidatedCallback();
-        }
-        devLog("Session invalidated; kicking out.");
-        onKickedOut();
+            if (onSessionInvalidatedCallback) {
+              devLog("Calling session invalidation callback");
+              onSessionInvalidatedCallback();
+            }
+            devLog("Session invalidated; kicking out.");
+            onKickedOut();
+          }
+        })();
       }
     },
     (error) => {

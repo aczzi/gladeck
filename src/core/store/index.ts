@@ -13,6 +13,7 @@ import {
   isSessionAlive,
   onSessionInvalidated,
   setUpdateUserDataCallback,
+  setFlushBeforeInvalidationCallback,
 } from "@/core/firebase/sessionManager";
 
 // Store for unsubscribe functions
@@ -204,6 +205,10 @@ export default createStore({
         await dispatch("updateUserData", data);
       });
 
+      setFlushBeforeInvalidationCallback(async () => {
+        await dispatch("flushUserDataUpdates");
+      });
+
       devLog("Store initialized with all callbacks");
     },
 
@@ -288,7 +293,16 @@ export default createStore({
               if (docSnapshot.exists()) {
                 const userData = docSnapshot.data() as UserData;
                 devLog("User data loaded successfully:", userId);
-                commit("SET_USERDATA", userData);
+                // Re-apply any still-unflushed local changes on top of this
+                // snapshot: it may be an echo of an earlier write that
+                // predates a change already accumulated but not yet sent to
+                // Firestore, and a bare overwrite would otherwise revert the
+                // UI (and any update built next would use that stale base).
+                const merged =
+                  Object.keys(updateAccumulator).length > 0
+                    ? { ...userData, ...updateAccumulator }
+                    : userData;
+                commit("SET_USERDATA", merged);
                 commit("SET_LOADED", true);
                 resolve(userData);
               } else {

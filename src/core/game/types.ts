@@ -4,8 +4,14 @@ import type { Timestamp } from "firebase/firestore";
 
 export type Attribution = "dps" | "tank" | "support";
 
-// Attack/Defense/Luck are stored on a 0-200 scale (see STAT_MAX in
-// gameRules.ts, ROADMAP.md §2). HP has no upper bound.
+export type GladiatorTrait =
+  | "brute"
+  | "stoic"
+  | "lucky"
+  | "bloodthirsty"
+  | "crowdFavorite"
+  | "incorrigible";
+
 export interface GladiatorStats {
   atk: number;
   luck: number;
@@ -18,8 +24,12 @@ export interface Gladiator {
   id: string;
   name: string;
   stats: GladiatorStats;
+  baseStats: GladiatorStats;
+  trait: GladiatorTrait;
   injured: boolean;
+  resting: boolean;
   battlesFought: number;
+  trainingPoints: number;
   lastHealedAt?: Timestamp;
   lastTrainingProgramUpgradeAt?: Timestamp;
 }
@@ -36,7 +46,6 @@ export interface FanDonationBuilding {
   lastCollected: Timestamp;
 }
 
-// Barracks has a fixed capacity (see BARRACKS_CAPACITY) - no upgrade.
 export type BarracksBuilding = Record<string, never>;
 
 export interface TrainingProgramBuilding {
@@ -50,8 +59,6 @@ export interface InfirmaryBuilding {
 export interface MarketBuilding {
   level: number;
   dailyTradesLeft: number;
-  // Anchors the 24h cooldown before dailyTradesLeft refills back to
-  // marketDailyTrades(level).
   lastTradeReset: Timestamp;
 }
 
@@ -67,31 +74,19 @@ export interface Profile {
   username: string;
   rankPoints: number;
   gold: number;
+  legacyPoints: number;
 }
 
-// One of the 4 gladiators sent into a fight, with its line assignment.
 export interface CombatSlot {
   gladiatorId: string;
   line: Attribution | null;
 }
 
-// Aggregated team stats, used for rival matchmaking budget only
-// (ROADMAP.md §4.1). Individual fights are resolved per-gladiator, see
-// CombatUnit.
-export interface TeamStats {
-  atk: number;
-  luck: number;
-  hp: number;
-  def: number;
-}
-
-// A single fighter as tracked during combat resolution: line modifiers
-// already applied, HP tracked individually rather than pooled per team
-// (ROADMAP.md §4.5).
 export interface CombatUnit {
   id: string;
   name: string;
   attribution: Attribution;
+  trait?: GladiatorTrait;
   atk: number;
   luck: number;
   def: number;
@@ -101,23 +96,25 @@ export interface CombatUnit {
 
 export interface CombatLogEntry {
   turn: number;
+  round: number;
   attacker: "trainer" | "rival";
+  attackerId: string;
   attackerName: string;
+  targetId: string;
   targetName: string;
   damage: number;
   targetHpAfter: number;
   crit: boolean;
   dodged: boolean;
-  targetDefeated: boolean;
+  targetDowned: boolean;
+  targetKilled: boolean;
+  survivedLethal: boolean;
 }
 
 export interface CombatResult {
   victory: boolean;
   log: CombatLogEntry[];
-  // Final state of each trainer gladiator sent to combat, for per-gladiator
-  // attrition (ROADMAP.md §5) instead of a single team-wide ratio.
   trainerUnits: { id: string; initialHp: number; hpCurrent: number }[];
-  rankPointsGained: number;
   goldGained: number;
 }
 
@@ -127,11 +124,18 @@ export interface SessionData {
   userAgent: string;
 }
 
+export interface PendingCombat {
+  gladiatorIds: string[];
+  placement: Record<string, Attribution | null>;
+  bet: number;
+}
+
 export interface UserData {
   profile: Profile;
   buildings: Buildings;
   gladiators: Record<string, Gladiator>;
   user_active: boolean;
+  pendingCombat?: PendingCombat | null;
   session?: {
     currentSession: SessionData | null;
   };

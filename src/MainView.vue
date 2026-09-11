@@ -141,26 +141,6 @@
                   <span class="navbar-toggler-icon" />
                 </button>
                 <div id="navbarNav" class="collapse navbar-collapse">
-                  <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                      <a
-                        class="nav-link btn"
-                        :class="{ active: activeTab === 'camp' }"
-                        @click="activeTab = 'camp'"
-                      >
-                        <i class="bi bi-houses-fill" /> Camp
-                      </a>
-                    </li>
-                    <li class="nav-item">
-                      <a
-                        class="nav-link btn"
-                        :class="{ active: activeTab === 'combat' }"
-                        @click="activeTab = 'combat'"
-                      >
-                        <i class="bi bi-shield" /> Arena
-                      </a>
-                    </li>
-                  </ul>
                   <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
                       <a
@@ -261,8 +241,7 @@
                 </div>
               </div>
             </div>
-            <Camp v-if="activeTab === 'camp'" />
-            <Arena v-else-if="activeTab === 'combat'" />
+            <Camp />
           </template>
         </template>
       </template>
@@ -274,6 +253,13 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import firebase from "firebase/compat/app";
 import { db } from "@/core/firebase/store";
+
+import TopInfo from "@/components/subComponents/TopInfo.vue";
+import Camp from "@/components/Camp.vue";
+import HowToPlay from "@/components/modals/HowToPlay.vue";
+import Leaderboard from "@/components/modals/Leaderboard.vue";
+import UserInfo from "@/components/modals/UserInfo.vue";
+import EmailLogin from "@/components/modals/EmailLogin.vue";
 import {
   getAuth,
   signInWithPopup,
@@ -330,9 +316,6 @@ const {
 const isAuthenticated = computed(() => {
   return isActiveUser.value && userData.value;
 });
-
-// Tab state
-const activeTab = ref<"camp" | "combat">("camp");
 
 // Modal states
 const showUserModal = ref<boolean>(false);
@@ -604,6 +587,20 @@ onMounted((): void => {
         setError(error.message || "Failed to load user data");
       }
     } else {
+      // Firebase itself reports the user as signed out - this can happen
+      // outside our own handleLogout() flow (token expiry/revocation,
+      // cleared storage, etc). Try one last flush while a user is still on
+      // hand to attribute the write to, before clearing it: setUser(null)
+      // otherwise stops the periodic timer and discards anything still
+      // batched without ever attempting to save it.
+      try {
+        await flushUserDataUpdates();
+      } catch (flushError) {
+        console.error(
+          "Error flushing updates before clearing signed-out user:",
+          flushError,
+        );
+      }
       setUser(null);
     }
   });

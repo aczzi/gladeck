@@ -12,9 +12,15 @@
       <p class="card-text">
         <strong>{{ pendingGold }}</strong> gold to collect.
       </p>
+      <p v-if="legacyPoints > 0" class="text-muted small">
+        <i class="bi bi-award-fill" /> {{ legacyPoints }} retired legend{{
+          legacyPoints > 1 ? "s" : ""
+        }}
+        (+{{ legacyPoints * LEGACY_BONUS_PERCENT_PER_RETIREE }}% gold/day).
+      </p>
       <div class="d-flex gap-2 mb-3">
         <button
-          class="btn btn-success"
+          class="btn btn-outline-primary"
           :disabled="pendingGold <= 0"
           @click="collect"
         >
@@ -42,6 +48,7 @@ import {
   fanDonationGoldPerDay,
   fanDonationGoldSinceLastCollection,
   buildingUpgradeCost,
+  LEGACY_BONUS_PERCENT_PER_RETIREE,
 } from "@/core/game/gameRules";
 
 const { userData, gold, updateUserData } = useGameStore();
@@ -50,51 +57,52 @@ const level = computed(() => userData.value?.buildings.fanDonation.level || 1);
 const lastCollected = computed(
   () => userData.value?.buildings.fanDonation.lastCollected || Timestamp.now(),
 );
-const goldPerDay = computed(() => fanDonationGoldPerDay(level.value));
+const legacyPoints = computed(() => userData.value?.profile.legacyPoints || 0);
+const goldPerDay = computed(() =>
+  fanDonationGoldPerDay(level.value, legacyPoints.value),
+);
 const pendingGold = computed(() =>
   userData.value
-    ? fanDonationGoldSinceLastCollection(level.value, lastCollected.value)
+    ? fanDonationGoldSinceLastCollection(
+        level.value,
+        lastCollected.value,
+        legacyPoints.value,
+      )
     : 0,
 );
 const upgradeCost = computed(() => buildingUpgradeCost(level.value));
 
 const collect = () => {
   if (!userData.value || pendingGold.value <= 0) return;
-  updateUserData(
-    {
-      profile: {
-        ...userData.value.profile,
-        gold: userData.value.profile.gold + pendingGold.value,
-      },
-      buildings: {
-        ...userData.value.buildings,
-        fanDonation: {
-          ...userData.value.buildings.fanDonation,
-          lastCollected: Timestamp.now(),
-        },
+  updateUserData({
+    profile: {
+      ...userData.value.profile,
+      gold: userData.value.profile.gold + pendingGold.value,
+    },
+    buildings: {
+      ...userData.value.buildings,
+      fanDonation: {
+        ...userData.value.buildings.fanDonation,
+        lastCollected: Timestamp.now(),
       },
     },
-    { immediate: true },
-  );
+  });
 };
 
 const upgrade = () => {
   if (!userData.value || gold.value < upgradeCost.value) return;
-  updateUserData(
-    {
-      profile: {
-        ...userData.value.profile,
-        gold: gold.value - upgradeCost.value,
-      },
-      buildings: {
-        ...userData.value.buildings,
-        fanDonation: {
-          ...userData.value.buildings.fanDonation,
-          level: level.value + 1,
-        },
+  updateUserData({
+    profile: {
+      ...userData.value.profile,
+      gold: gold.value - upgradeCost.value,
+    },
+    buildings: {
+      ...userData.value.buildings,
+      fanDonation: {
+        ...userData.value.buildings.fanDonation,
+        level: level.value + 1,
       },
     },
-    { immediate: true },
-  );
+  });
 };
 </script>

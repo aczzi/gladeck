@@ -16,13 +16,21 @@
               v-for="gladiator in gladiators"
               :key="gladiator.id"
               :value="gladiator.id"
-              :disabled="cooldownRemaining(gladiator) > 0"
+              :disabled="
+                cooldownRemaining(gladiator) > 0 ||
+                gladiator.resting ||
+                !canAffordTrainingProgramUpgrade(gladiator)
+              "
             >
-              {{ gladiator.name
-              }}{{
-                cooldownRemaining(gladiator) > 0
-                  ? ` (cooldown ${formatCooldown(cooldownRemaining(gladiator))})`
-                  : ""
+              {{ gladiator.name }} ({{ getTrainingPoints(gladiator) }} training
+              pt{{ getTrainingPoints(gladiator) === 1 ? "" : "s" }}){{
+                gladiator.resting
+                  ? " (resting)"
+                  : !canAffordTrainingProgramUpgrade(gladiator)
+                    ? " (no training points)"
+                    : cooldownRemaining(gladiator) > 0
+                      ? ` (cooldown ${formatCooldown(cooldownRemaining(gladiator))})`
+                      : ""
               }}
             </option>
           </select>
@@ -36,11 +44,13 @@
         </div>
         <div class="col-auto">
           <button
-            class="btn btn-success"
+            class="btn btn-outline-primary"
             :disabled="
               !selectedGladiatorId ||
               gold < upgradeGladiatorCost ||
-              selectedGladiatorCooldown > 0
+              selectedGladiatorCooldown > 0 ||
+              !!selectedGladiator?.resting ||
+              !selectedGladiatorCanAfford
             "
             @click="upgradeGladiator"
           >
@@ -48,7 +58,9 @@
             {{
               selectedGladiatorCooldown > 0
                 ? `Cooldown ${formatCooldown(selectedGladiatorCooldown)}`
-                : `Train gladiator (${upgradeGladiatorCost} gold)`
+                : !selectedGladiatorCanAfford
+                  ? "No training points"
+                  : `Train gladiator (${upgradeGladiatorCost} gold, 1 pt)`
             }}
           </button>
         </div>
@@ -71,13 +83,17 @@ import { useGameStore } from "@/core/store/gameStore";
 import {
   trainingProgramBonusPercent,
   trainingProgramUpgradeCooldownRemainingMs,
+  trainingProgramUpgradeGoldCost,
   buildingUpgradeCost,
   applyTrainingProgramUpgrade,
+  rollTrainingInjury,
+  canAffordTrainingProgramUpgrade,
+  getTrainingPoints,
+  TRAINING_INJURY_HP_LOSS_PERCENT,
+  TRAINING_POINT_COST_PER_UPGRADE,
   type TrainingProgramTrainableStat,
 } from "@/core/game/gameRules";
 import type { Gladiator } from "@/core/game/types";
-
-const UPGRADE_GLADIATOR_COST = 30;
 
 const { userData, gold, updateUserData } = useGameStore();
 
@@ -86,7 +102,6 @@ const level = computed(
 );
 const bonusPercent = computed(() => trainingProgramBonusPercent(level.value));
 const upgradeCost = computed(() => buildingUpgradeCost(level.value));
-const upgradeGladiatorCost = UPGRADE_GLADIATOR_COST;
 
 const gladiators = computed(() =>
   Object.values(userData.value?.gladiators || {}),
@@ -97,8 +112,8 @@ const selectedStat = ref<TrainingProgramTrainableStat>("atk");
 watch(
   gladiators,
   (list) => {
-    if (!selectedGladiatorId.value && list.length > 0) {
-      selectedGladiatorId.value = list[0].id;
+    if (!selectedGladiatorId.value) {
+      selectedGladiatorId.value = list.find((g) => !g.resting)?.id || "";
     }
   },
   { immediate: true },
@@ -135,32 +150,63 @@ const selectedGladiator = computed(
 const selectedGladiatorCooldown = computed(() =>
   selectedGladiator.value ? cooldownRemaining(selectedGladiator.value) : 0,
 );
+const selectedGladiatorCanAfford = computed(() =>
+  selectedGladiator.value
+    ? canAffordTrainingProgramUpgrade(selectedGladiator.value)
+    : false,
+);
+// Incorrigible gladiators train cheaper than the base cost - see
+// trainingProgramUpgradeGoldCost in gameRules.ts.
+const upgradeGladiatorCost = computed(() =>
+  trainingProgramUpgradeGoldCost(selectedGladiator.value?.trait),
+);
 
 const upgradeGladiator = () => {
+  if (!userData.value || !selectedGladiatorId.value) return;
+  const gladiator = userData.value.gladiators[selectedGladiatorId.value];
+  if (!gladiator) return;
+  const cost = trainingProgramUpgradeGoldCost(gladiator.trait);
   if (
-    !userData.value ||
-    !selectedGladiatorId.value ||
-    gold.value < upgradeGladiatorCost
+    gold.value < cost ||
+    cooldownRemaining(gladiator) > 0 ||
+    gladiator.resting ||
+    !canAffordTrainingProgramUpgrade(gladiator)
   )
     return;
-  const gladiator = userData.value.gladiators[selectedGladiatorId.value];
-  if (!gladiator || cooldownRemaining(gladiator) > 0) return;
-  const stats = applyTrainingProgramUpgrade(
+  let stats = applyTrainingProgramUpgrade(
     gladiator.stats,
     selectedStat.value,
     level.value,
+    gladiator.trait,
   );
+  let injured = gladiator.injured;
+  if (rollTrainingInjury(level.value, gladiator.trait)) {
+    stats = {
+      ...stats,
+      hpCurrent: Math.max(
+        0,
+        stats.hpCurrent - stats.hpMax * TRAINING_INJURY_HP_LOSS_PERCENT,
+      ),
+    };
+    injured = true;
+  }
+  // Immediate on purpose: rollTrainingInjury() above is a random roll, and
+  // without this a player could reload before the next batch to dodge a bad
+  // injury outcome for free.
   updateUserData(
     {
       profile: {
         ...userData.value.profile,
-        gold: gold.value - upgradeGladiatorCost,
+        gold: gold.value - cost,
       },
       gladiators: {
         ...userData.value.gladiators,
         [gladiator.id]: {
           ...gladiator,
           stats,
+          injured,
+          trainingPoints:
+            getTrainingPoints(gladiator) - TRAINING_POINT_COST_PER_UPGRADE,
           lastTrainingProgramUpgradeAt: Timestamp.now(),
         },
       },
@@ -171,21 +217,21 @@ const upgradeGladiator = () => {
 
 const upgradeTrainingProgram = () => {
   if (!userData.value || gold.value < upgradeCost.value) return;
-  updateUserData(
-    {
-      profile: {
-        ...userData.value.profile,
-        gold: gold.value - upgradeCost.value,
-      },
-      buildings: {
-        ...userData.value.buildings,
-        trainingProgram: {
-          ...userData.value.buildings.trainingProgram,
-          level: level.value + 1,
-        },
+  // No RNG and no state to lock in here - gold and level move together in
+  // the same write, so a reload before the next batch just re-shows the
+  // pre-upgrade state with the gold unspent. Safe to batch normally.
+  updateUserData({
+    profile: {
+      ...userData.value.profile,
+      gold: gold.value - upgradeCost.value,
+    },
+    buildings: {
+      ...userData.value.buildings,
+      trainingProgram: {
+        ...userData.value.buildings.trainingProgram,
+        level: level.value + 1,
       },
     },
-    { immediate: true },
-  );
+  });
 };
 </script>

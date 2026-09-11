@@ -120,6 +120,9 @@ const fetchLeaderboard = async (forceRefresh = false): Promise<void> => {
       });
     });
 
+    leaderboardData.sort(
+      (a, b) => b.rankPoints - a.rankPoints || b.rosterValue - a.rosterValue,
+    );
     players.value = leaderboardData;
   } catch (err) {
     console.error("Error fetching leaderboard:", err);
