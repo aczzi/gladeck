@@ -15,25 +15,15 @@
         <h6 class="mb-1 combat-card__name">
           {{ name }}
         </h6>
-        <span
-          class="badge"
-          :class="attributionBadgeClass"
-        >
+        <span class="badge" :class="attributionBadgeClass">
           <i :class="attributionIcon" />
         </span>
       </div>
-      <span
-        v-if="trait"
-        class="badge mb-1"
-        :class="traitBadgeClass(trait)"
-      >
+      <span v-if="trait" class="badge mb-1" :class="traitBadgeClass(trait)">
         <i :class="traitIcon(trait)" />
         {{ traitLabel(trait) }}
       </span>
-      <div
-        class="progress mt-1"
-        style="height: 8px"
-      >
+      <div class="progress mt-1" style="height: 8px">
         <div
           class="progress-bar combat-card__hp-bar"
           :class="hpBarClass"
@@ -44,16 +34,10 @@
         {{ Math.round(Math.max(0, hpCurrent)) }} / {{ Math.round(hpMax) }} HP
       </div>
       <div class="combat-card__status small text-center">
-        <span
-          v-if="isDead"
-          class="text-danger"
-        >
+        <span v-if="isDead" class="text-danger">
           <i class="bi bi-skull" /> Dead
         </span>
-        <span
-          v-else-if="isDowned"
-          class="text-warning"
-        >
+        <span v-else-if="isDowned" class="text-warning">
           <i class="bi bi-emoji-dizzy" /> Down
         </span>
       </div>

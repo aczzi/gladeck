@@ -4,6 +4,10 @@ import type { Timestamp } from "firebase/firestore";
 
 export type Attribution = "dps" | "tank" | "support";
 
+// PvE matchmaking difficulty - each maps to a rival power budget multiplier
+// and a target win-rate band (see gameRules.ts's RIVAL_BUDGET_MULTIPLIER_BY_DIFFICULTY).
+export type ArenaDifficulty = "easy" | "normal" | "hard";
+
 export type GladiatorTrait =
   | "brute"
   | "stoic"
@@ -108,8 +112,10 @@ export interface CombatLogEntry {
   targetHpAfter: number;
   crit: boolean;
   dodged: boolean;
+  // Hit brought the target down to the HP floor - final fate (survives
+  // knocked out vs. dies) is decided once, after the fight ends, by
+  // resolveDownedFates - see gameRules.ts.
   targetDowned: boolean;
-  targetKilled: boolean;
   survivedLethal: boolean;
 }
 
@@ -117,6 +123,7 @@ export interface CombatResult {
   victory: boolean;
   log: CombatLogEntry[];
   trainerUnits: { id: string; initialHp: number; hpCurrent: number }[];
+  rivalUnits: { id: string; initialHp: number; hpCurrent: number }[];
   // Total = baseGoldReward + crowdFavoriteBonusGold (wager payout is handled
   // separately in Arena.vue, which doesn't go through resolveCombat).
   goldGained: number;
@@ -137,6 +144,7 @@ export interface PendingCombat {
   gladiatorIds: string[];
   placement: Record<string, Attribution | null>;
   bet: number;
+  difficulty: ArenaDifficulty;
 }
 
 export interface UserData {

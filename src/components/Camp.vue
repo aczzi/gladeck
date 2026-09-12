@@ -10,10 +10,7 @@
       <div class="col-md-6">
         <Barracks />
         <div class="text-center mt-3">
-          <p
-            v-if="!canFight"
-            class="alert alert-warning"
-          >
+          <p v-if="!canFight" class="alert alert-warning">
             {{
               hasGladiators
                 ? "All your gladiators are resting - send at least one back to duty at the Barracks."
@@ -30,10 +27,7 @@
         </div>
       </div>
     </div>
-    <Arena
-      v-if="showArenaModal"
-      @close="showArenaModal = false"
-    />
+    <Arena v-if="showArenaModal" @close="showArenaModal = false" />
   </div>
 </template>
 

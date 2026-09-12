@@ -37,18 +37,28 @@ export const devGroupEnd = () => {
 };
 
 // ====== Math Utilities ======
-export function uniformRandInt(max: number): number {
+
+// Injectable random source - defaults to Math.random everywhere, but lets
+// the combat engine and its test/simulation suite swap in a seeded PRNG so
+// a fight is reproducible (see gameRules.ts's resolveCombat/RngFn usage).
+export type RngFn = () => number;
+
+export function uniformRandInt(max: number, rng: RngFn = Math.random): number {
   if (max <= 0) return 0;
-  return Math.floor(Math.random() * max);
+  return Math.floor(rng() * max);
 }
 
 // Pick n distinct random items from an array
-export function pickRandom<T>(items: T[], n: number): T[] {
+export function pickRandom<T>(
+  items: T[],
+  n: number,
+  rng: RngFn = Math.random,
+): T[] {
   const pool = [...items];
   const picked: T[] = [];
   const count = Math.min(n, pool.length);
   for (let i = 0; i < count; i++) {
-    const index = uniformRandInt(pool.length);
+    const index = uniformRandInt(pool.length, rng);
     picked.push(pool.splice(index, 1)[0]);
   }
   return picked;

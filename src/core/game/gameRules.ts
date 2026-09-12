@@ -2,7 +2,7 @@
 // from this file for consistency (see .github/copilot-instructions.md).
 
 import { Timestamp } from "firebase/firestore";
-import { uniformRandInt, pickRandom } from "@/core/utils";
+import { uniformRandInt, pickRandom, type RngFn } from "@/core/utils";
 import type {
   Gladiator,
   GladiatorStats,
@@ -11,6 +11,7 @@ import type {
   Profile,
   UserData,
   Attribution,
+  ArenaDifficulty,
   CombatUnit,
   CombatResult,
   CombatLogEntry,
@@ -34,6 +35,18 @@ export const CRIT_MULTIPLIER = 1.5;
 // a loss just forfeits the wager).
 export const VICTORY_GOLD_REWARD = 50;
 
+// The wager itself is debited up front (Arena.vue's engage()) and this is
+// the net effect it should have once the fight resolves: +wager on a win
+// (the debited wager plus 2x back), -wager on a loss (never returned) -
+// never +2*wager, which would mean the wager was paid out twice without
+// ever having been debited.
+export function computeArenaWagerNetGold(
+  wager: number,
+  victory: boolean,
+): number {
+  return victory ? wager : -wager;
+}
+
 export const TRAINING_PROGRAM_UPGRADE_COOLDOWN_MS = 30 * 60 * 1000;
 export const TRAINING_POINT_PER_VICTORY = 1;
 export const TRAINING_POINT_COST_PER_UPGRADE = 1;
@@ -55,32 +68,41 @@ export const GLADIATOR_TRAITS: GladiatorTrait[] = [
   "incorrigible",
 ];
 
-// Brute: Training Program Attack upgrades get +10 percentage points.
-export const TRAIT_BRUTE_TRAINING_BONUS_PERCENT_ADD = 10;
+// Brute: Training Program Attack upgrades get +20% of the normal bonus
+// (multiplicative, not a flat point add) - a flat +10pp used to nearly
+// double the level-1 bonus (17% vs 7% for everyone else); scaling with the
+// base bonus instead keeps it proportionate at every Training Program level.
+export const TRAIT_BRUTE_TRAINING_BONUS_MULTIPLIER = 1.2;
 // Stoic ("Increvable"): a hit that would kill instead leaves 1 HP, this often.
 export const TRAIT_STOIC_SURVIVAL_CHANCE = 0.25;
 // Lucky: gains a flat +2 Luck per victory instead of the usual +1.
 export const TRAIT_LUCKY_VICTORY_LUCK_GAIN = 2;
-// Bloodthirsty: every confirmed kill lands compounds the killer's own Attack
-// for the rest of that same fight (resolveCombat works on cloned units, so
-// this never persists between fights).
+// Bloodthirsty: every knockdown lands compounds the killer's own Attack for
+// the rest of that same fight (resolveCombat works on cloned units, so this
+// never persists between fights). Triggers exactly once per knockdown, on
+// justDowned - see resolveCombat.
 export const TRAIT_BLOODTHIRSTY_ATK_GAIN_PER_KILL_PERCENT = 5;
 // Crowd Favorite: flat % more gold on victory, per Crowd Favorite gladiator
-// sent - stacks if several are sent to the same fight.
+// sent - stacks if several are sent to the same fight, up to this cap so a
+// team can't stack the bonus without limit.
 export const TRAIT_CROWD_FAVORITE_GOLD_BONUS_PERCENT = 20;
+export const CROWD_FAVORITE_MAX_STACK = 2;
 // Incorrigible: cheaper Training Program upgrades, but an extra personal
 // injury risk stacked on top of the level-gated one (see rollTrainingInjury).
-export const TRAIT_INCORRIGIBLE_TRAINING_COST_DISCOUNT_PERCENT = 20;
+export const TRAIT_INCORRIGIBLE_TRAINING_COST_DISCOUNT_PERCENT = 35;
 export const TRAIT_INCORRIGIBLE_INJURY_CHANCE_ADD = 0.1;
 
 export const COMBAT_HP_FLOOR = 1;
 
-export function pickRandomTrait(): GladiatorTrait {
-  return GLADIATOR_TRAITS[uniformRandInt(GLADIATOR_TRAITS.length)];
+export function pickRandomTrait(rng: RngFn = Math.random): GladiatorTrait {
+  return GLADIATOR_TRAITS[uniformRandInt(GLADIATOR_TRAITS.length, rng)];
 }
 
 // ====== §3 Roster & Attribution ======
 
+// DPS keeps its offensive edge but no longer also gets a Luck bonus on top -
+// stacking a crit/dodge/initiative edge with the best raw Attack made a
+// full-DPS team strictly dominant over any team using Tank or Support.
 export function applyAttribution(
   stats: GladiatorStats,
   line: Attribution,
@@ -89,7 +111,7 @@ export function applyAttribution(
   if (line === "dps") {
     return {
       atk: stats.atk * 1.2,
-      luck: stats.luck * 1.1,
+      luck: stats.luck,
       def: stats.def * 0.9,
       hpMax: stats.hpMax,
       hpCurrent: stats.hpCurrent,
@@ -104,33 +126,149 @@ export function applyAttribution(
   };
 }
 
+// ====== §3.1 Role combat mechanics ======
+// These act on CombatUnit.attribution at fight time, so they apply
+// identically to the trainer's team and to the rival team (see
+// distributeRivalBudget), rather than only through applyAttribution's stat
+// multipliers which only the trainer's own gladiators go through.
+
+// Tank: gets targeted roughly 3x as often as a non-Tank ally...
+export const TANK_TARGET_WEIGHT_MULTIPLIER = 3;
+// ...and shrugs off 10% of any hit that does land.
+export const TANK_DAMAGE_REDUCTION_PERCENT = 10;
+// Support: each one grants the whole side +8% Defense, stacking per Support
+// present - a flat collective buff applied once before the fight starts.
+export const SUPPORT_TEAM_DEF_BUFF_PERCENT = 8;
+// Composition rule: at most this many DPS per team. A full 4-gladiator team
+// still frees up its other two slots for Tank/Support in any mix (TT, SS or
+// TS all end up allowed simply by leaving them unconstrained), but the cap
+// is a ceiling rather than an exact requirement so it also works when fewer
+// than GLADIATORS_PER_BATTLE gladiators are available to send (a team of 1
+// or 2 can never exceed it anyway - the cap only actually bites at 3 or 4).
+export const MAX_DPS_PER_TEAM = 2;
+
+export function isValidTeamComposition(lines: Attribution[]): boolean {
+  return lines.filter((line) => line === "dps").length <= MAX_DPS_PER_TEAM;
+}
+
+// Applies the Support team buff in place, once, before combat starts.
+function applySupportTeamBuff(units: CombatUnit[]): void {
+  const supportCount = units.filter((u) => u.attribution === "support").length;
+  if (supportCount === 0) return;
+  const multiplier = 1 + (SUPPORT_TEAM_DEF_BUFF_PERCENT * supportCount) / 100;
+  for (const unit of units) {
+    unit.def *= multiplier;
+  }
+}
+
 // ====== §4.1 Rival matchmaking - power budget ======
 
-// Rival strength is sized off the trainer team's average GladiatorPower
-// rather than rankPoints - the same metric already used everywhere else to
-// gauge a gladiator's real strength (raw stats plus its battle-earned
-// bonus), rather than a disconnected rank counter.
-export const RIVAL_BUDGET_MULTIPLIER = 0.85;
+// Rival strength is sized off the trainer team's average *combat* power -
+// computed from the CombatUnit list (post-role stats, current HP), not from
+// the raw roster. This intentionally differs from gladiatorPower (used for
+// the camp UI's power tiers and market sell value): it must not count
+// battlesFought, since that already shows up as higher stats via
+// applyExperienceGain, and double-counting it as "more danger" on top
+// artificially over-scales rivals against veterans. Fatigue is represented
+// by using hpCurrent (not hpMax) directly in the sum, so a wounded team
+// draws a weaker rival instead of one sized for full health.
+export function computeMatchmakingUnitPower(unit: CombatUnit): number {
+  return unit.atk + unit.def + unit.luck + unit.hpCurrent;
+}
 
-// Average GladiatorPower across the sent team - the basis for the rival
-// team's total stat budget.
-export function computeAverageTeamPower(
-  sentGladiators: { stats: GladiatorStats; battlesFought?: number }[],
-): number {
-  if (sentGladiators.length === 0) return 0;
-  const totalPower = sentGladiators.reduce(
-    (sum, { stats, battlesFought }) =>
-      sum + gladiatorPower(stats, battlesFought ?? 0),
+export function computeAverageTeamPower(units: CombatUnit[]): number {
+  if (units.length === 0) return 0;
+  const totalPower = units.reduce(
+    (sum, unit) => sum + computeMatchmakingUnitPower(unit),
     0,
   );
-  return totalPower / sentGladiators.length;
+  return totalPower / units.length;
 }
+
+// Each difficulty targets a measurable PvE win-rate band (see the
+// simulation suite in gameRules.test.ts) and pays out accordingly - harder
+// fights are worth more.
+// Calibrated by Monte Carlo simulation (see gameRules.test.ts) against a
+// fresh 4-gladiator "rookie" team: easy ~80-85%, normal ~65-75%, hard
+// ~45-55% win rate, holding stable across many seeds. The win-rate curve is
+// extremely steep around budget parity (a couple of percentage points of
+// multiplier swing the win rate by tens of points), so these were tuned
+// empirically rather than picked by hand.
+export const RIVAL_BUDGET_MULTIPLIER_BY_DIFFICULTY: Record<
+  ArenaDifficulty,
+  number
+> = {
+  easy: 0.922,
+  normal: 0.947,
+  hard: 0.968,
+};
+
+// The difficulty is rolled once per fight and never shown to the player -
+// see Arena.vue's startPvECombat - so this is the only place it's chosen.
+export const ARENA_DIFFICULTIES: ArenaDifficulty[] = ["easy", "normal", "hard"];
+
+export function pickRandomDifficulty(
+  rng: RngFn = Math.random,
+): ArenaDifficulty {
+  return ARENA_DIFFICULTIES[uniformRandInt(ARENA_DIFFICULTIES.length, rng)];
+}
+
+// The difficulty pool for a fight widens with how many veteran-or-above
+// gladiators (see gladiatorPowerTier) are in the sent team, so a fresh
+// rookie squad is never unfairly thrown at Hard, while a team stacked with
+// veterans can't just keep farming Easy: 0 veterans -> Easy only, 1 veteran
+// -> Easy/Normal, 2+ veterans -> the full Easy/Normal/Hard pool.
+function countVeteranGladiators(
+  gladiators: { stats: GladiatorStats; battlesFought: number }[],
+): number {
+  return gladiators.filter(
+    (g) =>
+      gladiatorPowerTier(gladiatorPower(g.stats, g.battlesFought)) !==
+      "rookie",
+  ).length;
+}
+
+const ARENA_DIFFICULTY_POOL_BY_VETERAN_COUNT: ArenaDifficulty[][] = [
+  ["easy"],
+  ["easy", "normal"],
+];
+
+export function pickArenaDifficultyForTeam(
+  gladiators: { stats: GladiatorStats; battlesFought: number }[],
+  rng: RngFn = Math.random,
+): ArenaDifficulty {
+  const veteranCount = countVeteranGladiators(gladiators);
+  const pool =
+    ARENA_DIFFICULTY_POOL_BY_VETERAN_COUNT[veteranCount] ?? ARENA_DIFFICULTIES;
+  return pool[uniformRandInt(pool.length, rng)];
+}
+
+export const DIFFICULTY_GOLD_REWARD_MULTIPLIER: Record<
+  ArenaDifficulty,
+  number
+> = {
+  easy: 1,
+  normal: 1,
+  hard: 1.5,
+};
+
+// PvE rank points scale with difficulty rather than a flat 1-per-win, so the
+// raw total reflects some of the risk actually taken on rather than pure
+// combat volume (farming Easy wins no longer earns rank as fast as Hard).
+export const DIFFICULTY_RANK_POINTS_REWARD: Record<ArenaDifficulty, number> = {
+  easy: 1,
+  normal: 1,
+  hard: 2,
+};
 
 export function computeRivalBudget(
   avgTeamPower: number,
   unitCount: number,
+  difficulty: ArenaDifficulty = "normal",
 ): number {
-  return avgTeamPower * unitCount * RIVAL_BUDGET_MULTIPLIER;
+  return (
+    avgTeamPower * unitCount * RIVAL_BUDGET_MULTIPLIER_BY_DIFFICULTY[difficulty]
+  );
 }
 
 // Builds the individually-tracked fighters for the trainer's side
@@ -144,7 +282,7 @@ export function computeCombatUnits(
     trait: GladiatorTrait;
   }[],
 ): CombatUnit[] {
-  return sentGladiators.map(({ id, name, stats, line, trait }) => {
+  const units = sentGladiators.map(({ id, name, stats, line, trait }) => {
     const mod = applyAttribution(stats, line);
     return {
       id,
@@ -158,6 +296,8 @@ export function computeCombatUnits(
       hpCurrent: mod.hpCurrent,
     };
   });
+  applySupportTeamBuff(units);
+  return units;
 }
 
 export const RIVAL_STAT_WEIGHT_BASELINE = 1.5;
@@ -199,44 +339,57 @@ function allocateCappedBudget(
   return result;
 }
 
+// Same composition rule as the trainer's team (up to MAX_DPS_PER_TEAM DPS,
+// the rest a random Tank/Support mix) so rivals play by the same rules the
+// player does - see the "Give roles a real function" TODO priority.
+function rollRivalAttributions(count: number, rng: RngFn): Attribution[] {
+  const dpsSlots = Math.min(MAX_DPS_PER_TEAM, count);
+  return Array.from({ length: count }, (_, i) => {
+    if (i < dpsSlots) return "dps";
+    return rng() < 0.5 ? "tank" : "support";
+  });
+}
+
 export function distributeRivalBudget(
   budget: number,
   count: number,
+  rng: RngFn = Math.random,
 ): CombatUnit[] {
   const shareWeights = Array.from(
     { length: count },
-    () => RIVAL_STAT_WEIGHT_BASELINE + Math.random(),
+    () => RIVAL_STAT_WEIGHT_BASELINE + rng(),
   );
   const shareSum = shareWeights.reduce((a, b) => a + b, 0);
+  const attributions = rollRivalAttributions(count, rng);
 
-  return shareWeights.map((share, i) => {
+  const units = shareWeights.map((share, i) => {
     const unitBudget = (share / shareSum) * budget;
     const stats = allocateCappedBudget(unitBudget, [
       {
         key: "atk",
-        weight: RIVAL_STAT_WEIGHT_BASELINE + Math.random(),
+        weight: RIVAL_STAT_WEIGHT_BASELINE + rng(),
         cap: STAT_MAX,
       },
       {
         key: "luck",
-        weight: RIVAL_STAT_WEIGHT_BASELINE + Math.random(),
+        weight: RIVAL_STAT_WEIGHT_BASELINE + rng(),
         cap: LUCK_CAP,
       },
       {
         key: "def",
-        weight: RIVAL_STAT_WEIGHT_BASELINE + Math.random(),
+        weight: RIVAL_STAT_WEIGHT_BASELINE + rng(),
         cap: STAT_MAX,
       },
       {
         key: "hp",
-        weight: RIVAL_STAT_WEIGHT_BASELINE + Math.random(),
+        weight: RIVAL_STAT_WEIGHT_BASELINE + rng(),
         cap: Infinity,
       },
     ]);
     return {
       id: `rival-${i}`,
       name: `Rival Gladiator ${i + 1}`,
-      attribution: i % 2 === 0 ? "dps" : "tank",
+      attribution: attributions[i],
       atk: stats.atk,
       luck: stats.luck,
       def: stats.def,
@@ -244,6 +397,9 @@ export function distributeRivalBudget(
       hpCurrent: stats.hp,
     } as CombatUnit;
   });
+
+  applySupportTeamBuff(units);
+  return units;
 }
 
 // ====== §4.2 Initiative ======
@@ -258,8 +414,8 @@ export function determineInitiative(
 // ====== §4.3 Luck roll (stabilized variance) ======
 
 // Roll = (Luck * 0.25) + Random(0, Luck * 0.75)
-export function rollLuck(luck: number): number {
-  return luck * 0.25 + Math.random() * (luck * 0.75);
+export function rollLuck(luck: number, rng: RngFn = Math.random): number {
+  return luck * 0.25 + rng() * (luck * 0.75);
 }
 
 // ====== §4.4 Damage calculation (anti-negative floor, crit & dodge) ======
@@ -284,24 +440,71 @@ export function computeDodgeChance(targetLuck: number): number {
   return Math.min(DODGE_CHANCE_CAP, targetLuck / 500);
 }
 
-function pickTarget(defenders: CombatUnit[]): CombatUnit | null {
-  const alive = defenders.filter((u) => u.hpCurrent > 0);
-  if (alive.length === 0) return null;
-  return alive[uniformRandInt(alive.length)];
+// Tank draws a disproportionate share of incoming attacks (weighted random
+// pick) instead of every unit being equally likely to be targeted -
+// otherwise there is no reason to ever field one.
+function pickTarget(defenders: CombatUnit[], rng: RngFn): CombatUnit | null {
+  const targetable = defenders.filter((u) => !isDowned(u));
+  if (targetable.length === 0) return null;
+  const weights = targetable.map((u) =>
+    u.attribution === "tank" ? TANK_TARGET_WEIGHT_MULTIPLIER : 1,
+  );
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+  let roll = rng() * totalWeight;
+  for (let i = 0; i < targetable.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return targetable[i];
+  }
+  return targetable[targetable.length - 1];
 }
 
+// A unit at or below the HP floor is knocked out of the fight for good: it
+// can no longer act nor be targeted (see pickTarget), and its final fate
+// (survives knocked out, or dies) is rolled exactly once, after the whole
+// fight ends - see resolveDownedFates. This replaces the old model where a
+// downed unit stayed in the target pool and re-rolled survival on every
+// subsequent hit, which both let 90-Luck units become unkillable in
+// practice (chained near-certain rolls) and kept "dead weight" absorbing
+// attacks that should have gone to a unit still able to fight back.
 function isDowned(unit: CombatUnit): boolean {
   return unit.hpCurrent <= COMBAT_HP_FLOOR;
 }
 
+// Baseline 15% survival chance at 0 Luck, scaling up to a capped 85% at
+// LUCK_CAP - high Luck makes a knockout much less likely to be fatal, but
+// never a guarantee, so no gladiator is ever completely deathproof.
+export const DOWNED_SURVIVAL_CHANCE_MIN = 0.15;
+export const DOWNED_SURVIVAL_CHANCE_MAX = 0.85;
+
 export function computeDownedSurvivalChance(luck: number): number {
-  return Math.min(1, luck / LUCK_CAP);
+  const ratio = Math.max(0, Math.min(1, luck / LUCK_CAP));
+  return (
+    DOWNED_SURVIVAL_CHANCE_MIN +
+    ratio * (DOWNED_SURVIVAL_CHANCE_MAX - DOWNED_SURVIVAL_CHANCE_MIN)
+  );
+}
+
+// Resolves the fate of every unit still downed once the fight is over: a
+// single roll per unit, so nobody is executed or spared more than once.
+function resolveDownedFates(units: CombatUnit[], rng: RngFn): void {
+  for (const unit of units) {
+    if (!isDowned(unit)) continue;
+    const survives = rng() < computeDownedSurvivalChance(unit.luck);
+    unit.hpCurrent = survives ? COMBAT_HP_FLOOR : 0;
+  }
+}
+
+export interface ResolveCombatOptions {
+  difficulty?: ArenaDifficulty;
+  rng?: RngFn;
 }
 
 export function resolveCombat(
   trainerUnits: CombatUnit[],
   rivalUnits: CombatUnit[],
+  options: ResolveCombatOptions = {},
 ): CombatResult {
+  const { difficulty = "normal", rng = Math.random } = options;
   const trainer = trainerUnits.map((u) => ({ ...u }));
   const rival = rivalUnits.map((u) => ({ ...u }));
   const log: CombatLogEntry[] = [];
@@ -317,52 +520,46 @@ export function resolveCombat(
     attacker: CombatUnit,
     defenders: CombatUnit[],
   ) => {
-    const target = pickTarget(defenders);
+    const target = pickTarget(defenders, rng);
     if (!target) return;
     turn++;
 
-    const wasDowned = isDowned(target);
-    const dodged = Math.random() < computeDodgeChance(target.luck);
+    const dodged = rng() < computeDodgeChance(target.luck);
     let damage = 0;
     let crit = false;
     let survivedLethal = false;
     if (!dodged) {
-      crit = Math.random() < computeCritChance(attacker.luck);
+      crit = rng() < computeCritChance(attacker.luck);
       damage = computeEffectiveDamage(
         attacker.atk,
-        rollLuck(attacker.luck),
+        rollLuck(attacker.luck, rng),
         target.def,
-        rollLuck(target.luck),
+        rollLuck(target.luck, rng),
       );
+      if (target.attribution === "tank") {
+        damage *= 1 - TANK_DAMAGE_REDUCTION_PERCENT / 100;
+      }
       if (crit) damage *= CRIT_MULTIPLIER;
 
-      if (wasDowned) {
-        // Already on the ground - this hit is a real death risk now.
-        const survives =
-          Math.random() < computeDownedSurvivalChance(target.luck);
-        target.hpCurrent = survives ? COMBAT_HP_FLOOR : 0;
+      const rawHpAfter = target.hpCurrent - damage;
+      if (
+        rawHpAfter <= COMBAT_HP_FLOOR &&
+        target.trait === "stoic" &&
+        rng() < TRAIT_STOIC_SURVIVAL_CHANCE
+      ) {
+        // Would have been knocked down - Stoic keeps them just above the
+        // floor so they stay in the fight this round.
+        target.hpCurrent = COMBAT_HP_FLOOR + 1;
+        survivedLethal = true;
       } else {
-        const rawHpAfter = target.hpCurrent - damage;
-        if (
-          rawHpAfter <= COMBAT_HP_FLOOR &&
-          target.trait === "stoic" &&
-          Math.random() < TRAIT_STOIC_SURVIVAL_CHANCE
-        ) {
-          // Would have been knocked down - Stoic keeps them just above the
-          // floor so they stay in the fight this round.
-          target.hpCurrent = COMBAT_HP_FLOOR + 1;
-          survivedLethal = true;
-        } else {
-          target.hpCurrent = Math.max(COMBAT_HP_FLOOR, rawHpAfter);
-        }
+        target.hpCurrent = Math.max(COMBAT_HP_FLOOR, rawHpAfter);
       }
     }
 
-    // "Kill" is now "knockdown-or-worse": did this hit newly bring the
-    // target down to the floor, or actually finish off one already there?
-    const justDowned = !wasDowned && isDowned(target);
-    const justKilled = wasDowned && target.hpCurrent <= 0;
-    if ((justDowned || justKilled) && attacker.trait === "bloodthirsty") {
+    // The target entered this attack alive (pickTarget only returns
+    // targetable, non-downed units), so any resulting knockdown is new.
+    const justDowned = isDowned(target);
+    if (justDowned && attacker.trait === "bloodthirsty") {
       attacker.atk *= 1 + TRAIT_BLOODTHIRSTY_ATK_GAIN_PER_KILL_PERCENT / 100;
     }
 
@@ -379,13 +576,12 @@ export function resolveCombat(
       crit,
       dodged,
       targetDowned: justDowned,
-      targetKilled: justKilled,
       survivedLethal,
     });
   };
 
   // A side is still in the fight while at least one of its units hasn't
-  // been knocked down to COMBAT_HP_FLOOR - nobody actually dies anymore.
+  // been knocked down to COMBAT_HP_FLOOR.
   const alive = (units: CombatUnit[]) => units.some((u) => !isDowned(u));
   // Each round, every gladiator still standing attacks once, initiative
   // side first.
@@ -427,10 +623,23 @@ export function resolveCombat(
     victory = sumHp(trainer) > sumHp(rival);
   }
 
-  const crowdFavoriteCount = trainer.filter(
-    (u) => u.trait === "crowdFavorite",
-  ).length;
-  const baseGoldReward = victory ? VICTORY_GOLD_REWARD : 0;
+  // Knockouts are only actually resolved to "survives" or "dies" once the
+  // fight is fully over - see resolveDownedFates.
+  resolveDownedFates(trainer, rng);
+  resolveDownedFates(rival, rng);
+
+  // Crowd Favorite's bonus is capped per team so stacking several doesn't
+  // snowball the reward - it also only ever applies to this flat/bonus
+  // reward, never to the wager payout (handled separately in Arena.vue).
+  const crowdFavoriteCount = Math.min(
+    CROWD_FAVORITE_MAX_STACK,
+    trainer.filter((u) => u.trait === "crowdFavorite").length,
+  );
+  const baseGoldReward = victory
+    ? Math.round(
+        VICTORY_GOLD_REWARD * DIFFICULTY_GOLD_REWARD_MULTIPLIER[difficulty],
+      )
+    : 0;
   const crowdFavoriteBonusGold = victory
     ? Math.round(
         (baseGoldReward *
@@ -448,17 +657,24 @@ export function resolveCombat(
       initialHp: u.initialHp,
       hpCurrent: u.hpCurrent,
     })),
+    rivalUnits: rival.map((u) => ({
+      id: u.id,
+      initialHp: u.initialHp,
+      hpCurrent: u.hpCurrent,
+    })),
     baseGoldReward,
     crowdFavoriteBonusGold,
     goldGained: baseGoldReward + crowdFavoriteBonusGold,
-    // PvE sparring awards 1 rank point per win, tracked separately from PvP
-    // (see Profile.pveRankPoints/pvpRankPoints).
-    rankPointsGained: victory ? 1 : 0,
+    // PvE rank points scale with difficulty (see
+    // DIFFICULTY_RANK_POINTS_REWARD) so the raw total is not purely a combat
+    // volume counter, tracked separately from PvP (Profile.pveRankPoints/
+    // pvpRankPoints).
+    rankPointsGained: victory ? DIFFICULTY_RANK_POINTS_REWARD[difficulty] : 0,
   };
 }
 // ====== §6 Buildings & economy ======
 
-// Fan donation: Resources/Day = (Base * Level) * (1 + LegacyPoints * 10%)
+// Fan donation: Resources/Day = (Base * Level) * (1 + 10% * sqrt(LegacyPoints))
 export const FAN_DONATION_BASE_GOLD_PER_DAY = 1000;
 
 export function fanDonationGoldPerDay(
@@ -466,8 +682,12 @@ export function fanDonationGoldPerDay(
   legacyPoints: number = 0,
 ): number {
   const baseGold = FAN_DONATION_BASE_GOLD_PER_DAY * level;
+  // Diminishing returns via sqrt: retiree #1 is worth the full +10%, but the
+  // 4th is only worth +5% more (20% total instead of 40%) and the 9th only
+  // +3% more (30% instead of 90%) - retiring gladiators no longer compounds
+  // into an unbounded income multiplier.
   const legacyMultiplier =
-    1 + (legacyPoints * LEGACY_BONUS_PERCENT_PER_RETIREE) / 100;
+    1 + (LEGACY_BONUS_PERCENT_PER_RETIREE * Math.sqrt(legacyPoints)) / 100;
   return baseGold * legacyMultiplier;
 }
 
@@ -523,7 +743,7 @@ export function applyTrainingProgramUpgrade(
 ): GladiatorStats {
   let bonus = trainingProgramBonusPercent(trainingProgramLevel);
   if (statKey === "atk" && trait === "brute") {
-    bonus += TRAIT_BRUTE_TRAINING_BONUS_PERCENT_ADD;
+    bonus *= TRAIT_BRUTE_TRAINING_BONUS_MULTIPLIER;
   }
   const boosted = { ...stats };
   const current = boosted[statKey];
@@ -595,10 +815,18 @@ export function infirmaryMaxRestingGladiators(level: number): number {
   return Math.min(4, level);
 }
 
-// Market: trades unlocked per hour scale with level.
+// Market: trades unlocked per hour scale with level - every level grants an
+// immediate extra trade (the old (level % 2) + level formula gave the same
+// count for two consecutive levels, e.g. levels 1-2 and 3-4).
 export function marketTradesPerHour(level: number): number {
-  return (level % 2) + level;
+  return level + 1;
 }
+
+// Gold cost to recruit a fresh gladiator (createGladiator()) at the Market.
+// gladiatorSellValueMultiplier's flat rookie floor is calibrated against
+// this - a freshly recruited gladiator must never be resellable for more
+// than this, or recruit-then-sell becomes an infinite money exploit.
+export const MARKET_RECRUIT_COST = 50;
 
 // tradesLeftThisHour refills back to marketTradesPerHour(level) once every 60 minutes.
 export const MARKET_TRADES_RESET_COOLDOWN_MS = 60 * 60 * 1000;
@@ -698,19 +926,49 @@ export function gladiatorPowerTier(power: number): GladiatorPowerTier {
 
 // Market sell price: base value from raw combat stats, plus a flat bonus
 // per battle won - a battle-tested veteran fetches more than a fresh
-// recruit with identical stats. The whole thing is then scaled by the
-// gladiator's power tier, steeply, so training investment actually pays
-// off at resale instead of being a pure sink (see gladiatorPowerTier) -
-// crossing into a higher badge is what makes the training worth it, not
-// just the raw stat gain.
+// recruit with identical stats. The whole thing is then scaled by a
+// continuous curve over the gladiator's power, so training investment pays
+// off smoothly at resale instead of being a pure sink - the curve still
+// passes through the same anchor values the old per-tier multiplier used
+// (1x/3x/8x/10x at the tier thresholds from gladiatorPowerTier), but
+// interpolates between them instead of jumping the instant a single stat
+// point crosses a badge threshold (e.g. power 159 -> 160 used to almost
+// triple the sell value outright).
 export const SELL_VALUE_PER_BATTLE_FOUGHT_GOLD = 10;
 
-export const SELL_VALUE_TIER_MULTIPLIER: Record<GladiatorPowerTier, number> = {
-  rookie: 1,
-  veteran: 3,
-  elite: 8,
-  legend: 10,
-};
+// generateRandomGladiatorStats rolls atk/def/hpMax up to 39 and luck up to
+// 34, so a freshly recruited gladiator's power (see gladiatorPower) can
+// never exceed 39+39+34+39 = 151. The curve MUST stay flat at the rookie
+// multiplier (1x) for every power at or below that, with margin - otherwise
+// a fresh recruit could be resold for more than MARKET_RECRUIT_COST paid to
+// create it, an infinite-money exploit. This is guarded by a regression
+// test in gameRules.test.ts. Only widen this floor if the stat generation
+// range above ever changes too.
+const MAX_FRESH_RECRUIT_POWER = 151;
+
+const SELL_VALUE_MULTIPLIER_CURVE: { power: number; multiplier: number }[] = [
+  { power: 0, multiplier: 1 },
+  { power: MAX_FRESH_RECRUIT_POWER + 3, multiplier: 1 },
+  { power: 160, multiplier: 3 },
+  { power: 220, multiplier: 3 },
+  { power: 240, multiplier: 8 },
+  { power: 300, multiplier: 8 },
+  { power: 320, multiplier: 10 },
+];
+
+export function gladiatorSellValueMultiplier(power: number): number {
+  const curve = SELL_VALUE_MULTIPLIER_CURVE;
+  if (power <= curve[0].power) return curve[0].multiplier;
+  for (let i = 1; i < curve.length; i++) {
+    if (power <= curve[i].power) {
+      const prev = curve[i - 1];
+      const next = curve[i];
+      const ratio = (power - prev.power) / (next.power - prev.power);
+      return prev.multiplier + ratio * (next.multiplier - prev.multiplier);
+    }
+  }
+  return curve[curve.length - 1].multiplier;
+}
 
 export function gladiatorSellValue(
   stats: GladiatorStats,
@@ -718,40 +976,43 @@ export function gladiatorSellValue(
 ): number {
   const statValue = (stats.atk * 1.2 + stats.def * 1.2 + stats.luck * 1.1) / 3;
   const base = statValue + battlesFought * SELL_VALUE_PER_BATTLE_FOUGHT_GOLD;
-  const tier = gladiatorPowerTier(gladiatorPower(stats, battlesFought));
-  return Math.round(base * SELL_VALUE_TIER_MULTIPLIER[tier]);
+  const power = gladiatorPower(stats, battlesFought);
+  return Math.round(base * gladiatorSellValueMultiplier(power));
 }
 
 // ====== Gladiator generation ======
-export function generateRandomGladiatorStats(): GladiatorStats {
+export function generateRandomGladiatorStats(
+  rng: RngFn = Math.random,
+): GladiatorStats {
   const m = 20;
-  const hp = m + uniformRandInt(m);
+  const hp = m + uniformRandInt(m, rng);
   return {
-    atk: m + uniformRandInt(m),
-    def: m + uniformRandInt(m),
-    luck: 15 + uniformRandInt(m),
+    atk: m + uniformRandInt(m, rng),
+    def: m + uniformRandInt(m, rng),
+    luck: 15 + uniformRandInt(m, rng),
     hpMax: hp,
     hpCurrent: hp,
   };
 }
 
-export function generateGladiatorName(): string {
-  return `Gladiator#${1000000 + uniformRandInt(9000000)}`;
+export function generateGladiatorName(rng: RngFn = Math.random): string {
+  return `Gladiator#${1000000 + uniformRandInt(9000000, rng)}`;
 }
 
 let gladiatorIdCounter = 0;
 
 export function createGladiator(
   name: string = generateGladiatorName(),
+  rng: RngFn = Math.random,
 ): Gladiator {
   gladiatorIdCounter += 1;
-  const stats = generateRandomGladiatorStats();
+  const stats = generateRandomGladiatorStats(rng);
   return {
-    id: `${Date.now()}-${gladiatorIdCounter}-${uniformRandInt(1000)}`,
+    id: `${Date.now()}-${gladiatorIdCounter}-${uniformRandInt(1000, rng)}`,
     name,
     stats,
     baseStats: { ...stats },
-    trait: pickRandomTrait(),
+    trait: pickRandomTrait(rng),
     injured: false,
     resting: false,
     battlesFought: 0,

@@ -1,13 +1,6 @@
 <template>
-  <div
-    class="modal fade show d-block"
-    tabindex="-1"
-    @click="closeOnBackdrop"
-  >
-    <div
-      class="modal-dialog modal-fullscreen"
-      @click.stop
-    >
+  <div class="modal fade show d-block" tabindex="-1" @click="closeOnBackdrop">
+    <div class="modal-dialog modal-fullscreen" @click.stop>
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">
@@ -51,21 +44,15 @@
                           {{ traitLabel(gladiator.trait) }}
                         </span>
                       </h6>
-                      <p
-                        v-if="placement[gladiator.id]"
-                        class="mb-2"
-                      >
+                      <p v-if="placement[gladiator.id]" class="mb-2">
                         <i :class="roleIcon(placement[gladiator.id])" />
-                        {{ roleLabel(placement[gladiator.id]) }} <br>
+                        {{ roleLabel(placement[gladiator.id]) }} <br />
                         ATK {{ Math.round(displayedStats(gladiator).atk) }} -
                         DEF {{ Math.round(displayedStats(gladiator).def) }} -
                         LUCK
                         {{ Math.round(displayedStats(gladiator).luck) }}
                       </p>
-                      <p
-                        v-else
-                        class="text-muted mb-2"
-                      >
+                      <p v-else class="text-muted mb-2">
                         Pick a role to see modified stats.
                       </p>
                       <div class="btn-group w-100">
@@ -108,10 +95,7 @@
                 </div>
               </div>
               <div class="text-center">
-                <label
-                  for="betInput"
-                  class="form-label"
-                >
+                <label for="betInput" class="form-label">
                   Gold wager - win to double it back (max {{ maxBet }})
                 </label>
                 <div
@@ -126,8 +110,10 @@
                     min="0"
                     :max="Math.min(gold, maxBet)"
                     @change="clampBet"
+                  />
+                  <span class="input-group-text"
+                    >/ {{ Math.min(gold, maxBet) }} gold</span
                   >
-                  <span class="input-group-text">/ {{ Math.min(gold, maxBet) }} gold</span>
                 </div>
                 <button
                   class="btn btn-danger btn-lg"
@@ -136,29 +122,21 @@
                 >
                   <i class="bi bi-lightning-fill" /> Engage
                 </button>
-                <p
-                  v-if="!placementValid"
-                  class="text-muted mt-2"
-                >
-                  Assign each gladiator.
+                <p v-if="!placementValid" class="text-muted mt-2">
+                  {{ placementHint }}
                 </p>
               </div>
             </div>
           </div>
 
           <!-- Step 2: battlefield + result -->
-          <div
-            v-else-if="result"
-            class="container-fluid"
-          >
+          <div v-else-if="result" class="container-fluid">
             <p class="text-center text-muted mb-2">
               Round {{ currentRound }} / {{ MAX_COMBAT_ROUNDS }}
             </p>
             <div class="row justify-content-center align-items-start g-4">
               <div class="col-auto">
-                <h6 class="text-center text-primary">
-                  Your Team
-                </h6>
+                <h6 class="text-center text-primary">Your Team</h6>
                 <div class="d-flex flex-wrap gap-2 justify-content-center">
                   <CombatCard
                     v-for="unit in combatTrainerUnits"
@@ -178,13 +156,16 @@
                   />
                 </div>
               </div>
-              <div class="col-auto d-none d-md-flex align-items-center">
-                <span class="display-6 text-muted">VS</span>
+              <div
+                class="col-auto d-flex flex-column align-items-center justify-content-center"
+              >
+                <span class="display-6 text-muted d-none d-md-inline">VS</span>
+                <span class="badge mt-1" :class="difficultyBadgeClass">
+                  <i class="bi bi-bar-chart-fill" /> {{ difficultyLabel }}
+                </span>
               </div>
               <div class="col-auto">
-                <h6 class="text-center text-danger">
-                  Rival Team
-                </h6>
+                <h6 class="text-center text-danger">Rival Team</h6>
                 <div class="d-flex flex-wrap gap-2 justify-content-center">
                   <CombatCard
                     v-for="unit in combatRivalUnits"
@@ -259,21 +240,20 @@
                         Total: +{{ totalGoldGained }} gold
                       </li>
                     </ul>
-                    <p
-                      v-else-if="lastBet > 0"
-                      class="mb-0 text-danger"
-                    >
+                    <p v-else-if="lastBet > 0" class="mb-0 text-danger">
                       <i class="bi bi-coin" /> Wager lost: -{{ lastBet }} gold
+                    </p>
+                    <p
+                      v-if="fallenGladiatorNames.length > 0"
+                      class="mb-0 mt-2 text-danger"
+                    >
+                      <i class="bi bi-skull" /> Fallen:
+                      {{ fallenGladiatorNames.join(", ") }}
                     </p>
                   </div>
                 </div>
-                <div
-                  v-if="displayedLog.length > 0"
-                  class="text-start mb-3"
-                >
-                  <h6 class="text-center">
-                    Combat log
-                  </h6>
+                <div v-if="displayedLog.length > 0" class="text-start mb-3">
+                  <h6 class="text-center">Combat log</h6>
                   <ul
                     class="list-group"
                     style="max-height: 220px; overflow-y: auto"
@@ -300,27 +280,22 @@
                         <template v-else>
                           hits {{ entry.targetName }} for
                           {{ Math.round(entry.damage) }} dmg
-                          <span
-                            v-if="entry.crit"
-                            class="text-warning"
-                          >(crit!)</span>
-                          <span
-                            v-if="entry.survivedLethal"
-                            class="text-info"
+                          <span v-if="entry.crit" class="text-warning"
+                            >(crit!)</span
                           >
-                            - clings on!</span>
-                          <span
-                            v-else-if="entry.targetKilled"
-                            class="text-danger"
+                          <span v-if="entry.survivedLethal" class="text-info">
+                            - clings on!</span
                           >
-                            - killed!</span>
                           <span
                             v-else-if="entry.targetDowned"
                             class="text-danger"
-                          >- knocked down</span>
+                            >- knocked down</span
+                          >
                         </template>
                       </span>
-                      <span class="text-muted">HP left: {{ Math.round(entry.targetHpAfter) }}</span>
+                      <span class="text-muted"
+                        >HP left: {{ Math.round(entry.targetHpAfter) }}</span
+                      >
                     </li>
                   </ul>
                 </div>
@@ -347,7 +322,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useGameStore } from "@/core/store/gameStore";
-import type { Gladiator, Attribution, CombatUnit } from "@/core/game/types";
+import type {
+  Gladiator,
+  Attribution,
+  ArenaDifficulty,
+  CombatUnit,
+} from "@/core/game/types";
 import {
   sendGladiatorsToCombat,
   computeAverageTeamPower,
@@ -358,6 +338,10 @@ import {
   applyAttribution,
   applyExperienceGain,
   getTrainingPoints,
+  isValidTeamComposition,
+  computeArenaWagerNetGold,
+  pickArenaDifficultyForTeam,
+  MAX_DPS_PER_TEAM,
   TRAINING_POINT_PER_VICTORY,
   MAX_COMBAT_ROUNDS,
   arenaMaxBet,
@@ -396,6 +380,23 @@ const placement = ref<Record<string, Attribution | null>>({});
 const result = ref<CombatResult | null>(null);
 const bet = ref(0);
 const lastBet = ref(0);
+// Rolled once per draw in startPvECombat - never shown or chosen before
+// engaging, only revealed once the fight is on screen (between the VS
+// cards), so it explains the outcome without letting the player pick or
+// bet around it.
+const difficulty = ref<ArenaDifficulty>("normal");
+
+const difficultyLabel = computed(() => {
+  if (difficulty.value === "easy") return "Easy";
+  if (difficulty.value === "hard") return "Hard";
+  return "Normal";
+});
+
+const difficultyBadgeClass = computed(() => {
+  if (difficulty.value === "easy") return "text-bg-success";
+  if (difficulty.value === "hard") return "text-bg-danger";
+  return "text-bg-warning";
+});
 
 const maxBet = computed(() =>
   arenaMaxBet(userData.value?.buildings.fanDonation.level || 1),
@@ -406,6 +407,16 @@ const maxBet = computed(() =>
 const totalGoldGained = computed(
   () => (result.value?.goldGained || 0) + lastBet.value * 2,
 );
+
+// Names of sent gladiators whose final HP (post resolveDownedFates) was 0 -
+// shown once the animation has finished revealing their fate.
+const fallenGladiatorNames = computed(() => {
+  if (!result.value || !sentGladiators.value) return [];
+  const finalHpById = new Map(result.value.trainerUnits.map((u) => [u.id, u]));
+  return sentGladiators.value
+    .filter((g) => (finalHpById.get(g.id)?.hpCurrent ?? g.stats.hpCurrent) <= 0)
+    .map((g) => g.name);
+});
 
 // Battlefield display state - populated in engage() from the exact units
 // resolveCombat was called with (never mutated by it - see resolveCombat's
@@ -501,16 +512,19 @@ const startPvECombat = () => {
   const initialPlacement = Object.fromEntries(
     gladiators.map((g) => [g.id, null]),
   );
+  const rolledDifficulty = pickArenaDifficultyForTeam(gladiators);
   sentGladiators.value = gladiators;
   placement.value = initialPlacement;
   result.value = null;
   bet.value = 0;
+  difficulty.value = rolledDifficulty;
   updateUserData(
     {
       pendingCombat: {
         gladiatorIds: gladiators.map((g) => g.id),
         placement: initialPlacement,
         bet: 0,
+        difficulty: rolledDifficulty,
       },
     },
     { immediate: true },
@@ -542,6 +556,7 @@ watch(
     sentGladiators.value = gladiators;
     placement.value = { ...pending.placement };
     bet.value = pending.bet;
+    difficulty.value = pending.difficulty || "normal";
   },
   { immediate: true },
 );
@@ -555,6 +570,7 @@ const persistPendingCombat = () => {
       gladiatorIds: sentGladiators.value.map((g) => g.id),
       placement: { ...placement.value },
       bet: bet.value,
+      difficulty: difficulty.value,
     },
   });
 };
@@ -586,7 +602,27 @@ const roleLabel = (line: Attribution | null) => {
 
 const placementValid = computed(() => {
   if (!sentGladiators.value || sentGladiators.value.length === 0) return false;
-  return sentGladiators.value.every((g) => placement.value[g.id] != null);
+  const allAssigned = sentGladiators.value.every(
+    (g) => placement.value[g.id] != null,
+  );
+  if (!allAssigned) return false;
+  const lines = sentGladiators.value.map(
+    (g) => placement.value[g.id] as Attribution,
+  );
+  return isValidTeamComposition(lines);
+});
+
+// Guides the player toward the required composition instead of just saying
+// "invalid" once every gladiator has a role assigned.
+const placementHint = computed(() => {
+  if (!sentGladiators.value) return "";
+  const assignedCount = sentGladiators.value.filter(
+    (g) => placement.value[g.id] != null,
+  ).length;
+  if (assignedCount < sentGladiators.value.length) {
+    return "Assign each gladiator.";
+  }
+  return `At most ${MAX_DPS_PER_TEAM} DPS allowed per team.`;
 });
 
 const engage = () => {
@@ -602,26 +638,43 @@ const engage = () => {
     stats: gladiator.stats,
     line: placement.value[gladiator.id] as Attribution,
     trait: gladiator.trait,
-    battlesFought: gladiator.battlesFought,
   }));
   const trainerUnits = computeCombatUnits(placedGladiators);
-  const avgTeamPower = computeAverageTeamPower(placedGladiators);
-  const rivalBudget = computeRivalBudget(avgTeamPower, trainerUnits.length);
+  const avgTeamPower = computeAverageTeamPower(trainerUnits);
+  const rivalBudget = computeRivalBudget(
+    avgTeamPower,
+    trainerUnits.length,
+    difficulty.value,
+  );
   const rivalUnits = distributeRivalBudget(rivalBudget, trainerUnits.length);
-  const combatResult = resolveCombat(trainerUnits, rivalUnits);
+  const combatResult = resolveCombat(trainerUnits, rivalUnits, {
+    difficulty: difficulty.value,
+  });
   result.value = combatResult;
   combatTrainerUnits.value = trainerUnits;
   combatRivalUnits.value = rivalUnits;
-  playCombatAnimation(combatResult.log, trainerUnits, rivalUnits);
+  const finalHpById = new Map(
+    [...combatResult.trainerUnits, ...combatResult.rivalUnits].map((u) => [
+      u.id,
+      u.hpCurrent,
+    ]),
+  );
+  playCombatAnimation(combatResult.log, trainerUnits, rivalUnits).then(() => {
+    // The animation only replays the round-by-round log - the post-combat
+    // downed/dead resolution (resolveDownedFates) happens after that log
+    // ends, so apply it to the display once playback catches up.
+    liveHp.value = { ...liveHp.value, ...Object.fromEntries(finalHpById) };
+  });
 
-  // PvE sparring: a gladiator only dies if it's hit again after already
-  // being knocked down to the HP floor (see computeDownedSurvivalChance in
-  // gameRules.ts) - hpCurrent is 0 in that case. Only a win grants the
-  // permanent stat bump and training point - see applyExperienceGain.
-  const finalHpById = new Map(combatResult.trainerUnits.map((u) => [u.id, u]));
+  // PvE sparring: a gladiator only dies if its final HP is 0 once
+  // resolveDownedFates has run - see gameRules.ts's resolveCombat. Only a
+  // win grants the permanent stat bump and training point (applyExperienceGain).
+  const finalHpByGladiatorId = new Map(
+    combatResult.trainerUnits.map((u) => [u.id, u]),
+  );
   const gladiators = { ...userData.value.gladiators };
   for (const gladiator of sentGladiators.value) {
-    const unit = finalHpById.get(gladiator.id);
+    const unit = finalHpByGladiatorId.get(gladiator.id);
     const hpCurrent = unit ? unit.hpCurrent : gladiator.stats.hpCurrent;
     if (hpCurrent <= 0) {
       delete gladiators[gladiator.id];
@@ -652,7 +705,7 @@ const engage = () => {
         gold:
           userData.value.profile.gold +
           combatResult.goldGained +
-          (combatResult.victory ? 2 * wager : -wager),
+          computeArenaWagerNetGold(wager, combatResult.victory),
         pveRankPoints:
           (userData.value.profile.pveRankPoints || 0) +
           combatResult.rankPointsGained,

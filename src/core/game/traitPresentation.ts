@@ -5,6 +5,7 @@ import type { GladiatorTrait } from "@/core/game/types";
 import {
   TRAIT_BLOODTHIRSTY_ATK_GAIN_PER_KILL_PERCENT,
   TRAIT_CROWD_FAVORITE_GOLD_BONUS_PERCENT,
+  CROWD_FAVORITE_MAX_STACK,
   TRAIT_INCORRIGIBLE_TRAINING_COST_DISCOUNT_PERCENT,
   TRAIT_INCORRIGIBLE_INJURY_CHANCE_ADD,
 } from "@/core/game/gameRules";
@@ -63,13 +64,13 @@ export function traitBadgeClass(trait: GladiatorTrait): string {
 export function traitDescription(trait: GladiatorTrait): string {
   switch (trait) {
     case "brute":
-      return "Training Program Attack gains are +10%.";
+      return "Training Program Attack gains are 20% stronger.";
     case "stoic":
       return "A hit that would knock them down sometimes leaves them standing instead.";
     case "bloodthirsty":
       return `Gains +${TRAIT_BLOODTHIRSTY_ATK_GAIN_PER_KILL_PERCENT}% Attack (stacking) for the rest of the fight whenever it knocks an opponent down.`;
     case "crowdFavorite":
-      return `Victories earn +${TRAIT_CROWD_FAVORITE_GOLD_BONUS_PERCENT}% gold.`;
+      return `Victories earn +${TRAIT_CROWD_FAVORITE_GOLD_BONUS_PERCENT}% gold (stacks up to ${CROWD_FAVORITE_MAX_STACK} per team).`;
     case "incorrigible":
       return `Training Program upgrades cost ${TRAIT_INCORRIGIBLE_TRAINING_COST_DISCOUNT_PERCENT}% less gold, but carry +${Math.round(TRAIT_INCORRIGIBLE_INJURY_CHANCE_ADD * 100)}% injury risk.`;
     default:

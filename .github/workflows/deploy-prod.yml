@@ -10,10 +10,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
+      - name: Test
+        run: |
+          npm install
+          npm test
       - name: Build
         run: |
           rm -rf dist
-          npm install
           npm run build
           cp -r src/assets/* dist/
       - name: Deploy

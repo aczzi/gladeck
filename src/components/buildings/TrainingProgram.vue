@@ -3,26 +3,25 @@
     <div
       class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
     >
-      <span><i class="bi bi-mortarboard-fill" /> Training Program - Level
-        {{ level }}</span>
+      <span
+        ><i class="bi bi-mortarboard-fill" /> Training Program - Level
+        {{ level }}</span
+      >
       <span class="badge bg-secondary">+{{ bonusPercent }}%</span>
     </div>
     <div class="card-body">
       <div class="row g-2 align-items-end mb-2">
         <div class="col-auto">
           <label class="form-label">Gladiator</label>
-          <select
-            v-model="selectedGladiatorId"
-            class="form-select"
-          >
+          <select v-model="selectedGladiatorId" class="form-select">
             <option
               v-for="gladiator in gladiators"
               :key="gladiator.id"
               :value="gladiator.id"
               :disabled="
                 cooldownRemaining(gladiator) > 0 ||
-                  gladiator.resting ||
-                  !canAffordTrainingProgramUpgrade(gladiator)
+                gladiator.resting ||
+                !canAffordTrainingProgramUpgrade(gladiator)
               "
             >
               {{ gladiator.name }} ({{ getTrainingPoints(gladiator) }} training
@@ -40,16 +39,9 @@
         </div>
         <div class="col-auto">
           <label class="form-label">Stat</label>
-          <select
-            v-model="selectedStat"
-            class="form-select"
-          >
-            <option value="atk">
-              Attack
-            </option>
-            <option value="def">
-              Defense
-            </option>
+          <select v-model="selectedStat" class="form-select">
+            <option value="atk">Attack</option>
+            <option value="def">Defense</option>
           </select>
         </div>
         <div class="col-auto">
@@ -57,10 +49,10 @@
             class="btn btn-outline-primary"
             :disabled="
               !selectedGladiatorId ||
-                gold < upgradeGladiatorCost ||
-                selectedGladiatorCooldown > 0 ||
-                !!selectedGladiator?.resting ||
-                !selectedGladiatorCanAfford
+              gold < upgradeGladiatorCost ||
+              selectedGladiatorCooldown > 0 ||
+              !!selectedGladiator?.resting ||
+              !selectedGladiatorCanAfford
             "
             @click="upgradeGladiator"
           >
@@ -75,10 +67,7 @@
           </button>
         </div>
       </div>
-      <BuildingLevelsTable
-        :current-level="level"
-        :rows="levelRows"
-      />
+      <BuildingLevelsTable :current-level="level" :rows="levelRows" />
       <button
         v-if="!isMaxLevel"
         class="btn btn-outline-light"
@@ -87,10 +76,7 @@
       >
         Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
       </button>
-      <span
-        v-else
-        class="badge bg-success"
-      >Max level</span>
+      <span v-else class="badge bg-success">Max level</span>
     </div>
   </div>
 </template>

@@ -20,8 +20,8 @@
           class="btn btn-outline-primary"
           :disabled="
             gold < recruitCost ||
-              gladiatorCount >= capacity ||
-              tradesLeftThisHour <= 0
+            gladiatorCount >= capacity ||
+            tradesLeftThisHour <= 0
           "
           @click="recruit"
         >
@@ -32,10 +32,7 @@
       <div class="row g-2 align-items-end mb-2">
         <div class="col-auto">
           <label class="form-label">Sell a gladiator</label>
-          <select
-            v-model="selectedGladiatorId"
-            class="form-select"
-          >
+          <select v-model="selectedGladiatorId" class="form-select">
             <option
               v-for="gladiator in sellableGladiators"
               :key="gladiator.id"
@@ -55,10 +52,7 @@
           </button>
         </div>
       </div>
-      <BuildingLevelsTable
-        :current-level="level"
-        :rows="levelRows"
-      />
+      <BuildingLevelsTable :current-level="level" :rows="levelRows" />
       <button
         v-if="!isMaxLevel"
         class="btn btn-outline-light"
@@ -72,10 +66,7 @@
       >
         Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
       </button>
-      <span
-        v-else
-        class="badge bg-success"
-      >Max level</span>
+      <span v-else class="badge bg-success">Max level</span>
     </div>
   </div>
 </template>
@@ -91,13 +82,12 @@ import {
   buildingUpgradeCost,
   isBuildingMaxLevel,
   MAX_BUILDING_LEVEL,
+  MARKET_RECRUIT_COST,
   barracksCapacity,
   createGladiator,
   gladiatorSellValue,
 } from "@/core/game/gameRules";
 import type { Gladiator } from "@/core/game/types";
-
-const RECRUIT_COST = 50;
 
 const { userData, gold, updateUserData } = useGameStore();
 
@@ -107,7 +97,7 @@ const tradesLeftThisHour = computed(
 );
 const isMaxLevel = computed(() => isBuildingMaxLevel(level.value));
 const upgradeCost = computed(() => buildingUpgradeCost(level.value));
-const recruitCost = RECRUIT_COST;
+const recruitCost = MARKET_RECRUIT_COST;
 const levelRows = computed(() =>
   Array.from({ length: MAX_BUILDING_LEVEL }, (_, i) => i + 1).map((lvl) => ({
     level: lvl,
