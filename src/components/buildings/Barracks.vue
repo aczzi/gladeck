@@ -5,9 +5,7 @@
     >
       <span><i class="bi bi-shield-fill" /> Barracks</span>
       <div class="d-flex gap-2 flex-wrap">
-        <span class="badge bg-secondary"
-          >{{ gladiatorCount }}/{{ capacity }} gladiators</span
-        >
+        <span class="badge bg-secondary">{{ gladiatorCount }}/{{ capacity }} gladiators</span>
         <span
           class="badge"
           :class="
@@ -21,10 +19,16 @@
       </div>
     </div>
     <div class="card-body">
-      <p v-if="gladiators.length === 0" class="text-muted m-2">
+      <p
+        v-if="gladiators.length === 0"
+        class="text-muted m-2"
+      >
         No gladiators yet - recruit some at the Market.
       </p>
-      <ul v-else class="list-group m-2">
+      <ul
+        v-else
+        class="list-group m-2"
+      >
         <li
           v-for="gladiator in rankedGladiators"
           :key="gladiator.id"
@@ -39,7 +43,7 @@
                 :value="gladiator.name"
                 class="form-control form-control-sm bg-dark text-light gladiator-name-input"
                 @change="renameGladiator(gladiator.id, $event)"
-              />
+              >
               <button
                 class="btn btn-sm btn-outline-light"
                 title="Show gladiator details"
@@ -55,13 +59,19 @@
                 <i :class="traitIcon(gladiator.trait)" />
                 {{ traitLabel(gladiator.trait) }}
               </span>
-              <span v-if="gladiator.resting" class="badge bg-warning text-dark">
+              <span
+                v-if="gladiator.resting"
+                class="badge bg-warning text-dark"
+              >
                 <i class="bi bi-moon-stars-fill" /> Resting
               </span>
             </div>
-            <span class="badge" :class="powerBadgeClass(gladiator.power)">
+            <span
+              class="badge"
+              :class="powerBadgeClass(gladiator.power)"
+            >
               {{ powerTierLabel(gladiator.power) }} - {{ gladiator.power }}
-              <br />
+              <br>
               <i class="bi bi-award" /> {{ gladiator.battlesFought }}
             </span>
           </div>
@@ -74,9 +84,15 @@
             }}
           </span>
 
-          <div v-if="expandedId === gladiator.id" class="mt-2 p-2 border-top">
+          <div
+            v-if="expandedId === gladiator.id"
+            class="mt-2 p-2 border-top"
+          >
             <p class="small mb-1">
-              <span class="badge" :class="traitBadgeClass(gladiator.trait)">
+              <span
+                class="badge"
+                :class="traitBadgeClass(gladiator.trait)"
+              >
                 <i :class="traitIcon(gladiator.trait)" />
                 {{ traitLabel(gladiator.trait) }}
               </span>

@@ -5,16 +5,28 @@
       type="button"
       @click="expanded = !expanded"
     >
-      <i class="bi" :class="expanded ? 'bi-chevron-up' : 'bi-chevron-down'" />
+      <i
+        class="bi"
+        :class="expanded ? 'bi-chevron-up' : 'bi-chevron-down'"
+      />
       {{ expanded ? "Hide" : "Show" }} levels
     </button>
-    <div v-if="expanded" class="table-responsive mt-2">
+    <div
+      v-if="expanded"
+      class="table-responsive mt-2"
+    >
       <table class="table table-dark table-sm mb-0">
         <thead>
           <tr>
-            <th scope="col">Level</th>
-            <th scope="col">Price</th>
-            <th scope="col">Boost</th>
+            <th scope="col">
+              Level
+            </th>
+            <th scope="col">
+              Price
+            </th>
+            <th scope="col">
+              Boost
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -28,7 +40,10 @@
               }}<span v-if="row.level === currentLevel"> (current)</span>
             </td>
             <td>
-              <span v-if="row.cost === null" class="text-muted">-</span>
+              <span
+                v-if="row.cost === null"
+                class="text-muted"
+              >-</span>
               <span v-else><i class="bi bi-coin" /> {{ row.cost }}</span>
             </td>
             <td>{{ row.boost }}</td>

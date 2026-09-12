@@ -41,7 +41,8 @@ const hasAccumulatedUpdates = () => Object.keys(updateAccumulator).length > 0;
 
 const buildLeaderboardEntry = (userData: UserData) => ({
   username: userData.profile.username,
-  rankPoints: userData.profile.rankPoints,
+  pveRankPoints: userData.profile.pveRankPoints || 0,
+  pvpRankPoints: userData.profile.pvpRankPoints || 0,
   rosterValue: Object.values(userData.gladiators).reduce(
     (sum, gladiator) =>
       sum + gladiatorSellValue(gladiator.stats, gladiator.battlesFought || 0),
@@ -527,7 +528,10 @@ export default createStore({
     loaded: (state: RootState) => state.gameState.loaded,
     error: (state: RootState) => state.gameState.error,
     hasPendingChanges: (state: RootState) => state.gameState.hasPendingChanges,
-    rankPoints: (state: RootState) => state.userData?.profile?.rankPoints || 0,
+    pveRankPoints: (state: RootState) =>
+      state.userData?.profile?.pveRankPoints || 0,
+    pvpRankPoints: (state: RootState) =>
+      state.userData?.profile?.pvpRankPoints || 0,
     gold: (state: RootState) => state.userData?.profile?.gold || 0,
   },
 });

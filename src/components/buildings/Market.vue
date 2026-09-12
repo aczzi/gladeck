@@ -20,8 +20,8 @@
           class="btn btn-outline-primary"
           :disabled="
             gold < recruitCost ||
-            gladiatorCount >= capacity ||
-            tradesLeftThisHour <= 0
+              gladiatorCount >= capacity ||
+              tradesLeftThisHour <= 0
           "
           @click="recruit"
         >
@@ -32,7 +32,10 @@
       <div class="row g-2 align-items-end mb-2">
         <div class="col-auto">
           <label class="form-label">Sell a gladiator</label>
-          <select v-model="selectedGladiatorId" class="form-select">
+          <select
+            v-model="selectedGladiatorId"
+            class="form-select"
+          >
             <option
               v-for="gladiator in sellableGladiators"
               :key="gladiator.id"
@@ -52,7 +55,10 @@
           </button>
         </div>
       </div>
-      <BuildingLevelsTable :current-level="level" :rows="levelRows" />
+      <BuildingLevelsTable
+        :current-level="level"
+        :rows="levelRows"
+      />
       <button
         v-if="!isMaxLevel"
         class="btn btn-outline-light"
@@ -66,13 +72,16 @@
       >
         Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
       </button>
-      <span v-else class="badge bg-success">Max level</span>
+      <span
+        v-else
+        class="badge bg-success"
+      >Max level</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch, watchEffect } from "vue";
 import { Timestamp } from "firebase/firestore";
 import { useGameStore } from "@/core/store/gameStore";
 import BuildingLevelsTable from "@/components/buildings/BuildingLevelsTable.vue";
@@ -132,32 +141,42 @@ const tradesResetCooldownMs = computed(() =>
 const isTradeCooldownActive = computed(() => tradesLeftThisHour.value <= 0);
 
 const formatCooldown = (ms: number) => {
-  const totalMinutes = Math.ceil(ms / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return `${hours}h ${minutes}m`;
+  const totalSeconds = Math.ceil(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 };
 
 // Once the 1h cooldown elapses, silently refill tradesLeftThisHour - this is
 // a deterministic hourly refresh (unlike the Fan Donation Luck Boost roll),
 // so it doesn't need an explicit player click.
-watch(
-  tradesResetCooldownMs,
-  (remaining) => {
-    if (remaining > 0 || !userData.value) return;
-    updateUserData({
-      buildings: {
-        ...userData.value.buildings,
-        market: {
-          ...userData.value.buildings.market,
-          tradesLeftThisHour: marketTradesPerHour(level.value),
-          lastTradeReset: Timestamp.now(),
-        },
+//
+// This is a watchEffect (not a watch on tradesResetCooldownMs) on purpose:
+// userData starts out null while it loads, so the cooldown briefly reads as
+// 0 before the real (possibly already-expired) value arrives. A watch only
+// fires on a value *change*, so if the real value is also 0 (cooldown was
+// already over before the page loaded), the callback would never fire again
+// and trades would stay stuck at 0 forever. watchEffect re-runs whenever
+// userData.value or now.value themselves change, regardless of what the
+// computed cooldown resolves to.
+watchEffect(() => {
+  if (!userData.value) return;
+  const remaining = marketTradesResetCooldownRemainingMs(
+    userData.value.buildings.market.lastTradeReset,
+    now.value,
+  );
+  if (remaining > 0) return;
+  updateUserData({
+    buildings: {
+      ...userData.value.buildings,
+      market: {
+        ...userData.value.buildings.market,
+        tradesLeftThisHour: marketTradesPerHour(level.value),
+        lastTradeReset: Timestamp.now(),
       },
-    });
-  },
-  { immediate: true },
-);
+    },
+  });
+});
 
 const capacity = computed(() =>
   barracksCapacity(userData.value?.profile.legacyPoints || 0),

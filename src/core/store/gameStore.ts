@@ -34,8 +34,11 @@ export function useGameStore() {
     () => store.getters.userData?.user_active || false,
   );
   const error: ComputedRef<string | null> = computed(() => store.getters.error);
-  const rankPoints: ComputedRef<number> = computed(
-    () => store.getters.rankPoints,
+  const pveRankPoints: ComputedRef<number> = computed(
+    () => store.getters.pveRankPoints,
+  );
+  const pvpRankPoints: ComputedRef<number> = computed(
+    () => store.getters.pvpRankPoints,
   );
   const gold: ComputedRef<number> = computed(() => store.getters.gold);
   const isUserDataLoaded: ComputedRef<boolean> = computed(
@@ -97,7 +100,8 @@ export function useGameStore() {
     loaded,
     isActiveUser,
     error,
-    rankPoints,
+    pveRankPoints,
+    pvpRankPoints,
     gold,
     isUserDataLoaded,
     hasPendingChanges,

@@ -106,12 +106,10 @@ export function applyAttribution(
 
 // ====== §4.1 Rival matchmaking - power budget ======
 
-// PvE sparring never awards rank points (see resolveCombat), so scaling the
-// rival budget off rankPoints was always a no-op - it stayed pinned at the
-// same fixed multiplier forever. Sizing off the trainer team's average
-// GladiatorPower instead ties rival strength to the same metric already
-// used everywhere else to gauge a gladiator's real strength (raw stats plus
-// its battle-earned bonus), rather than a disconnected rank counter.
+// Rival strength is sized off the trainer team's average GladiatorPower
+// rather than rankPoints - the same metric already used everywhere else to
+// gauge a gladiator's real strength (raw stats plus its battle-earned
+// bonus), rather than a disconnected rank counter.
 export const RIVAL_BUDGET_MULTIPLIER = 0.85;
 
 // Average GladiatorPower across the sent team - the basis for the rival
@@ -432,8 +430,15 @@ export function resolveCombat(
   const crowdFavoriteCount = trainer.filter(
     (u) => u.trait === "crowdFavorite",
   ).length;
-  const goldMultiplier =
-    1 + (crowdFavoriteCount * TRAIT_CROWD_FAVORITE_GOLD_BONUS_PERCENT) / 100;
+  const baseGoldReward = victory ? VICTORY_GOLD_REWARD : 0;
+  const crowdFavoriteBonusGold = victory
+    ? Math.round(
+        (baseGoldReward *
+          crowdFavoriteCount *
+          TRAIT_CROWD_FAVORITE_GOLD_BONUS_PERCENT) /
+          100,
+      )
+    : 0;
 
   return {
     victory,
@@ -443,8 +448,12 @@ export function resolveCombat(
       initialHp: u.initialHp,
       hpCurrent: u.hpCurrent,
     })),
-    // PvE sparring no longer awards rank points - see CombatResult.
-    goldGained: victory ? Math.round(VICTORY_GOLD_REWARD * goldMultiplier) : 0,
+    baseGoldReward,
+    crowdFavoriteBonusGold,
+    goldGained: baseGoldReward + crowdFavoriteBonusGold,
+    // PvE sparring awards 1 rank point per win, tracked separately from PvP
+    // (see Profile.pveRankPoints/pvpRankPoints).
+    rankPointsGained: victory ? 1 : 0,
   };
 }
 // ====== §6 Buildings & economy ======
@@ -798,7 +807,8 @@ export const startBuildings: Buildings = {
 
 export const startProfile: Profile = {
   username: `Trainer${uniformRandInt(1000) + 1}`,
-  rankPoints: 0,
+  pveRankPoints: 0,
+  pvpRankPoints: 0,
   gold: 200,
   legacyPoints: 0,
 };

@@ -12,13 +12,14 @@ avec les règles suivantes :
 - le joueur choisit le placement DPS/Tank/Support et une mise avant d'entrer
   dans la file ;
 - la mise est débitée à l'entrée dans la file et placée sous séquestre ;
-- un vainqueur récupère deux fois sa mise, sans récompense d'or PvE ;
+- un vainqueur récupère deux fois sa mise, + un bonus 100Gold + 20% de la mise par gladiateur 'Crowd Favorite'
 - le combat se résout automatiquement dès l'appariement ;
 - tout gladiateur terminant le combat à `COMBAT_HP_FLOOR` ou moins meurt et est
   retiré du roster, même dans l'équipe victorieuse ;
 - seuls les survivants du vainqueur gagnent l'expérience et le point
   d'entraînement ;
-- le PvP attribue des points de rang, contrairement au PvE ;
+- le PvP attribue +1 point de rang PvP par victoire, distinct des points de
+  rang PvE (le PvE en attribue aussi, séparément) ;
 - une reconnexion reprend l'état courant sans rejouer ni régler deux fois un
   match.
 
@@ -143,7 +144,7 @@ Le classement continue d'utiliser `/leaderboard/{uid}` et jamais les documents
 privés `/users/{uid}`. Le règlement serveur met à jour dans la même transaction :
 
 - `username` ;
-- `rankPoints` ;
+- `pvpRankPoints` ;
 - `rosterValue` ;
 - `updatedAt`.
 

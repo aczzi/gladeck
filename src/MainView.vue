@@ -7,10 +7,18 @@
     tabindex="-1"
     @click="closeHowToPlayModalOnBackdrop"
   >
-    <div class="modal-dialog modal-xl" @click.stop>
+    <div
+      class="modal-dialog modal-xl"
+      @click.stop
+    >
       <div class="modal-content">
         <div class="modal-header">
-          <h5 id="howToPlay" class="modal-title">Gladeck</h5>
+          <h5
+            id="howToPlay"
+            class="modal-title"
+          >
+            Gladeck
+          </h5>
           <button
             type="button"
             class="btn-close btn-close-white"
@@ -43,7 +51,10 @@
   >
     <div class="row justify-content-center">
       <div class="col-md-8">
-        <div class="alert alert-danger shadow-lg" role="alert">
+        <div
+          class="alert alert-danger shadow-lg"
+          role="alert"
+        >
           <h4 class="alert-heading">
             <i class="bi bi-exclamation-triangle-fill" />
             Access Restricted
@@ -60,19 +71,29 @@
     style="min-height: 50vh"
   >
     <div class="text-center">
-      <div class="spinner-border text-primary" role="status">
+      <div
+        class="spinner-border text-primary"
+        role="status"
+      >
         <span class="visually-hidden">Loading...</span>
       </div>
-      <p class="mt-2">Loading game data...</p>
+      <p class="mt-2">
+        Loading game data...
+      </p>
     </div>
   </div>
   <!-- Connected to Firebase -->
   <template v-if="loaded">
     <template v-if="adminData">
       <!-- Game is deactivated -->
-      <div v-if="!adminData.active_game" class="container-fluid bg">
+      <div
+        v-if="!adminData.active_game"
+        class="container-fluid bg"
+      >
         <div class="welcome">
-          <h1 class="gladiator">Gladeck</h1>
+          <h1 class="gladiator">
+            Gladeck
+          </h1>
           <h3>The game is currently deactivated</h3>
           <p>{{ adminData.message }}</p>
         </div>
@@ -80,14 +101,22 @@
       <!-- Game is activated -->
       <template v-if="adminData.active_game">
         <!-- Login page -->
-        <div v-if="userData === null" class="container-fluid bg">
+        <div
+          v-if="userData === null"
+          class="container-fluid bg"
+        >
           <div class="welcome">
-            <h1 class="gladiator">Gladeck</h1>
+            <h1 class="gladiator">
+              Gladeck
+            </h1>
             <p>This game needs a user account to save progress.</p>
             <div
               class="d-flex flex-column flex-md-row gap-2 justify-content-center"
             >
-              <button class="btn btn-outline-light btn-lg" @click="logIn()">
+              <button
+                class="btn btn-outline-light btn-lg"
+                @click="logIn()"
+              >
                 <i class="bi bi-google" /> Google
               </button>
               <button
@@ -97,15 +126,15 @@
                 <i class="bi bi-envelope-fill" /> Email
               </button>
             </div>
-            <br />
+            <br>
             <a
               class="btn btn-outline-light btn-lg"
               @click="showHowToPlayModal = true"
             >
               <i class="bi bi-question-circle" /> What is this game about?
             </a>
-            <br />
-            <br />
+            <br>
+            <br>
             <h5>2026</h5>
           </div>
         </div>
@@ -118,10 +147,15 @@
             style="min-height: 50vh"
           >
             <div class="text-center">
-              <div class="spinner-border text-danger" role="status">
+              <div
+                class="spinner-border text-danger"
+                role="status"
+              >
                 <span class="visually-hidden">Loading...</span>
               </div>
-              <p class="mt-2">This account is not active.</p>
+              <p class="mt-2">
+                This account is not active.
+              </p>
             </div>
           </div>
           <!-- User game -->
@@ -140,7 +174,10 @@
                 >
                   <span class="navbar-toggler-icon" />
                 </button>
-                <div id="navbarNav" class="collapse navbar-collapse">
+                <div
+                  id="navbarNav"
+                  class="collapse navbar-collapse"
+                >
                   <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
                       <a
@@ -159,14 +196,26 @@
                       </a>
                     </li>
                     <li class="nav-item">
-                      <a class="nav-link btn" @click="showUserModal = true">
+                      <a
+                        class="nav-link btn"
+                        @click="showUserModal = true"
+                      >
                         <i class="bi bi-person-circle" /> Account
                       </a>
                     </li>
                     <li class="nav-item">
-                      <a class="nav-link btn" @click="forceSave()">
-                        <i v-if="isSaving" class="bi bi-check-circle" />
-                        <i v-else class="bi bi-floppy2" />
+                      <a
+                        class="nav-link btn"
+                        @click="forceSave()"
+                      >
+                        <i
+                          v-if="isSaving"
+                          class="bi bi-check-circle"
+                        />
+                        <i
+                          v-else
+                          class="bi bi-floppy2"
+                        />
                       </a>
                     </li>
                     <li class="nav-item">
@@ -193,10 +242,16 @@
               tabindex="-1"
               @click="closeLeaderboardModalOnBackdrop"
             >
-              <div class="modal-dialog modal-xl" @click.stop>
+              <div
+                class="modal-dialog modal-xl"
+                @click.stop
+              >
                 <div class="modal-content">
                   <div class="modal-header">
-                    <h5 id="leaderboardModalLabel" class="modal-title">
+                    <h5
+                      id="leaderboardModalLabel"
+                      class="modal-title"
+                    >
                       <i class="bi bi-trophy-fill" />
                       Leaderboard
                     </h5>
@@ -221,10 +276,16 @@
               tabindex="-1"
               @click="closeUserModalOnBackdrop"
             >
-              <div class="modal-dialog modal-xl" @click.stop>
+              <div
+                class="modal-dialog modal-xl"
+                @click.stop
+              >
                 <div class="modal-content">
                   <div class="modal-header">
-                    <h5 id="userModal" class="modal-title">
+                    <h5
+                      id="userModal"
+                      class="modal-title"
+                    >
                       <i class="bi bi-person-circle" />
                       My account
                     </h5>

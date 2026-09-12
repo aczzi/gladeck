@@ -72,7 +72,9 @@ export interface Buildings {
 
 export interface Profile {
   username: string;
-  rankPoints: number;
+  // Rank points are tracked per combat type - there is no combined total.
+  pveRankPoints: number;
+  pvpRankPoints: number;
   gold: number;
   legacyPoints: number;
 }
@@ -115,7 +117,14 @@ export interface CombatResult {
   victory: boolean;
   log: CombatLogEntry[];
   trainerUnits: { id: string; initialHp: number; hpCurrent: number }[];
+  // Total = baseGoldReward + crowdFavoriteBonusGold (wager payout is handled
+  // separately in Arena.vue, which doesn't go through resolveCombat).
   goldGained: number;
+  baseGoldReward: number;
+  crowdFavoriteBonusGold: number;
+  // 1 on a win, 0 on a loss - resolveCombat is the PvE resolver, so this is
+  // always a PvE-type gain (see Profile.pveRankPoints).
+  rankPointsGained: number;
 }
 
 export interface SessionData {

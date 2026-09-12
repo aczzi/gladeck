@@ -6,10 +6,15 @@
     tabindex="-1"
     @click="closeOnBackdrop"
   >
-    <div class="modal-dialog" @click.stop>
+    <div
+      class="modal-dialog"
+      @click.stop
+    >
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Sign in with Email</h5>
+          <h5 class="modal-title">
+            Sign in with Email
+          </h5>
           <button
             type="button"
             class="btn-close btn-close-white"
@@ -20,7 +25,10 @@
         <div class="modal-body">
           <form @submit.prevent="createOrLogin">
             <div class="mb-3">
-              <label for="email" class="form-label">Email</label>
+              <label
+                for="email"
+                class="form-label"
+              >Email</label>
               <input
                 id="email"
                 v-model="email"
@@ -28,10 +36,13 @@
                 class="form-control"
                 placeholder="you@example.com"
                 required
-              />
+              >
             </div>
             <div class="mb-3">
-              <label for="password" class="form-label">Password</label>
+              <label
+                for="password"
+                class="form-label"
+              >Password</label>
               <input
                 id="password"
                 v-model="password"
@@ -39,21 +50,35 @@
                 class="form-control"
                 minlength="6"
                 required
-              />
+              >
             </div>
             <div class="mb-3">
-              <button class="btn btn-success m-2" type="submit">Sign in</button>
-              <button class="btn btn-primary m-2" @click="onResetPassword">
+              <button
+                class="btn btn-success m-2"
+                type="submit"
+              >
+                Sign in
+              </button>
+              <button
+                class="btn btn-primary m-2"
+                @click="onResetPassword"
+              >
                 Forgot password?
               </button>
             </div>
           </form>
         </div>
         <div class="modal-footer">
-          <div v-if="success" class="text-success">
+          <div
+            v-if="success"
+            class="text-success"
+          >
             {{ success }}
           </div>
-          <div v-else-if="error" class="text-danger">
+          <div
+            v-else-if="error"
+            class="text-danger"
+          >
             {{ error }}
           </div>
         </div>

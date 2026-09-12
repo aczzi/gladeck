@@ -4,7 +4,8 @@
       "collectionGroup": "leaderboard",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "rankPoints", "order": "DESCENDING" },
+        { "fieldPath": "pveRankPoints", "order": "DESCENDING" },
+        { "fieldPath": "pvpRankPoints", "order": "DESCENDING" },
         { "fieldPath": "rosterValue", "order": "DESCENDING" }
       ]
     }

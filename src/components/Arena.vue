@@ -1,6 +1,13 @@
 <template>
-  <div class="modal fade show d-block" tabindex="-1" @click="closeOnBackdrop">
-    <div class="modal-dialog modal-fullscreen" @click.stop>
+  <div
+    class="modal fade show d-block"
+    tabindex="-1"
+    @click="closeOnBackdrop"
+  >
+    <div
+      class="modal-dialog modal-fullscreen"
+      @click.stop
+    >
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">
@@ -44,15 +51,21 @@
                           {{ traitLabel(gladiator.trait) }}
                         </span>
                       </h6>
-                      <p v-if="placement[gladiator.id]" class="mb-2">
+                      <p
+                        v-if="placement[gladiator.id]"
+                        class="mb-2"
+                      >
                         <i :class="roleIcon(placement[gladiator.id])" />
-                        {{ roleLabel(placement[gladiator.id]) }} <br />
+                        {{ roleLabel(placement[gladiator.id]) }} <br>
                         ATK {{ Math.round(displayedStats(gladiator).atk) }} -
                         DEF {{ Math.round(displayedStats(gladiator).def) }} -
                         LUCK
                         {{ Math.round(displayedStats(gladiator).luck) }}
                       </p>
-                      <p v-else class="text-muted mb-2">
+                      <p
+                        v-else
+                        class="text-muted mb-2"
+                      >
                         Pick a role to see modified stats.
                       </p>
                       <div class="btn-group w-100">
@@ -95,7 +108,10 @@
                 </div>
               </div>
               <div class="text-center">
-                <label for="betInput" class="form-label">
+                <label
+                  for="betInput"
+                  class="form-label"
+                >
                   Gold wager - win to double it back (max {{ maxBet }})
                 </label>
                 <div
@@ -110,10 +126,8 @@
                     min="0"
                     :max="Math.min(gold, maxBet)"
                     @change="clampBet"
-                  />
-                  <span class="input-group-text"
-                    >/ {{ Math.min(gold, maxBet) }} gold</span
                   >
+                  <span class="input-group-text">/ {{ Math.min(gold, maxBet) }} gold</span>
                 </div>
                 <button
                   class="btn btn-danger btn-lg"
@@ -122,7 +136,10 @@
                 >
                   <i class="bi bi-lightning-fill" /> Engage
                 </button>
-                <p v-if="!placementValid" class="text-muted mt-2">
+                <p
+                  v-if="!placementValid"
+                  class="text-muted mt-2"
+                >
                   Assign each gladiator.
                 </p>
               </div>
@@ -130,13 +147,18 @@
           </div>
 
           <!-- Step 2: battlefield + result -->
-          <div v-else-if="result" class="container-fluid">
+          <div
+            v-else-if="result"
+            class="container-fluid"
+          >
             <p class="text-center text-muted mb-2">
               Round {{ currentRound }} / {{ MAX_COMBAT_ROUNDS }}
             </p>
             <div class="row justify-content-center align-items-start g-4">
               <div class="col-auto">
-                <h6 class="text-center text-primary">Your Team</h6>
+                <h6 class="text-center text-primary">
+                  Your Team
+                </h6>
                 <div class="d-flex flex-wrap gap-2 justify-content-center">
                   <CombatCard
                     v-for="unit in combatTrainerUnits"
@@ -160,7 +182,9 @@
                 <span class="display-6 text-muted">VS</span>
               </div>
               <div class="col-auto">
-                <h6 class="text-center text-danger">Rival Team</h6>
+                <h6 class="text-center text-danger">
+                  Rival Team
+                </h6>
                 <div class="d-flex flex-wrap gap-2 justify-content-center">
                   <CombatCard
                     v-for="unit in combatRivalUnits"
@@ -202,30 +226,54 @@
                     {{ result.victory ? "Victory!" : "Defeat" }}
                   </div>
                   <div class="card-body text-center">
-                    <p v-if="result.victory" class="mb-2">
-                      +{{ result.goldGained }} gold. Surviving gladiators come
-                      back a little stronger, but injured.
-                    </p>
-                    <p v-else class="mb-2">
-                      No gold, no glory - surviving gladiators limp back
-                      injured.
-                    </p>
-                    <p
-                      v-if="lastBet > 0"
-                      class="mb-0"
-                      :class="result.victory ? 'text-success' : 'text-danger'"
-                    >
-                      <i class="bi bi-coin" />
+                    <p class="mb-2">
                       {{
                         result.victory
-                          ? `Your ${lastBet} gold wager paid off - +${lastBet} gold!`
-                          : `You lost your ${lastBet} gold wager.`
+                          ? "Surviving gladiators come back a little stronger, but injured."
+                          : "No gold, no glory - surviving gladiators limp back injured."
                       }}
+                    </p>
+                    <ul
+                      v-if="result.victory"
+                      class="list-unstyled mb-0 text-success"
+                    >
+                      <li v-if="lastBet > 0">
+                        <i class="bi bi-coin" /> Wager doubled: +{{
+                          lastBet * 2
+                        }}
+                        gold
+                      </li>
+                      <li>
+                        <i class="bi bi-coin" /> Bonus: +{{
+                          result.baseGoldReward
+                        }}
+                        gold
+                      </li>
+                      <li v-if="result.crowdFavoriteBonusGold > 0">
+                        <i class="bi bi-star-fill" /> Crowd Favorite: +{{
+                          result.crowdFavoriteBonusGold
+                        }}
+                        gold
+                      </li>
+                      <li class="fw-bold border-top border-success pt-1 mt-1">
+                        Total: +{{ totalGoldGained }} gold
+                      </li>
+                    </ul>
+                    <p
+                      v-else-if="lastBet > 0"
+                      class="mb-0 text-danger"
+                    >
+                      <i class="bi bi-coin" /> Wager lost: -{{ lastBet }} gold
                     </p>
                   </div>
                 </div>
-                <div v-if="displayedLog.length > 0" class="text-start mb-3">
-                  <h6 class="text-center">Combat log</h6>
+                <div
+                  v-if="displayedLog.length > 0"
+                  class="text-start mb-3"
+                >
+                  <h6 class="text-center">
+                    Combat log
+                  </h6>
                   <ul
                     class="list-group"
                     style="max-height: 220px; overflow-y: auto"
@@ -252,28 +300,27 @@
                         <template v-else>
                           hits {{ entry.targetName }} for
                           {{ Math.round(entry.damage) }} dmg
-                          <span v-if="entry.crit" class="text-warning"
-                            >(crit!)</span
+                          <span
+                            v-if="entry.crit"
+                            class="text-warning"
+                          >(crit!)</span>
+                          <span
+                            v-if="entry.survivedLethal"
+                            class="text-info"
                           >
-                          <span v-if="entry.survivedLethal" class="text-info">
-                            - clings on!</span
-                          >
+                            - clings on!</span>
                           <span
                             v-else-if="entry.targetKilled"
                             class="text-danger"
                           >
-                            - killed!</span
-                          >
+                            - killed!</span>
                           <span
                             v-else-if="entry.targetDowned"
                             class="text-danger"
-                            >- knocked down</span
-                          >
+                          >- knocked down</span>
                         </template>
                       </span>
-                      <span class="text-muted"
-                        >HP left: {{ Math.round(entry.targetHpAfter) }}</span
-                      >
+                      <span class="text-muted">HP left: {{ Math.round(entry.targetHpAfter) }}</span>
                     </li>
                   </ul>
                 </div>
@@ -352,6 +399,12 @@ const lastBet = ref(0);
 
 const maxBet = computed(() =>
   arenaMaxBet(userData.value?.buildings.fanDonation.level || 1),
+);
+
+// Victory gold breakdown shown to the player: the wager doubled back, plus
+// the combat reward from resolveCombat (base + Crowd Favorite bonus).
+const totalGoldGained = computed(
+  () => (result.value?.goldGained || 0) + lastBet.value * 2,
 );
 
 // Battlefield display state - populated in engage() from the exact units
@@ -599,7 +652,10 @@ const engage = () => {
         gold:
           userData.value.profile.gold +
           combatResult.goldGained +
-          (combatResult.victory ? wager : -wager),
+          (combatResult.victory ? 2 * wager : -wager),
+        pveRankPoints:
+          (userData.value.profile.pveRankPoints || 0) +
+          combatResult.rankPointsGained,
       },
       gladiators,
       pendingCombat: null,

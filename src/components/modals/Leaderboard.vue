@@ -1,12 +1,24 @@
 <template>
   <div class="container-fluid">
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status">
+    <div
+      v-if="loading"
+      class="text-center py-5"
+    >
+      <div
+        class="spinner-border text-primary"
+        role="status"
+      >
         <span class="visually-hidden">Loading leaderboard...</span>
       </div>
-      <p class="mt-2">Loading leaderboard...</p>
+      <p class="mt-2">
+        Loading leaderboard...
+      </p>
     </div>
-    <div v-else-if="error" class="alert alert-danger" role="alert">
+    <div
+      v-else-if="error"
+      class="alert alert-danger"
+      role="alert"
+    >
       <i class="bi bi-exclamation-triangle" />
       Error loading leaderboard: {{ error }}
     </div>
@@ -25,34 +37,61 @@
               <i class="bi bi-arrow-clockwise" />
             </button>
           </th>
-          <th scope="col">Lanista</th>
-          <th scope="col">Rank points</th>
-          <th scope="col" class="hide-right">Roster value</th>
+          <th scope="col">
+            Lanista
+          </th>
+          <th scope="col">
+            PvE RP
+          </th>
+          <th scope="col">
+            PvP RP
+          </th>
+          <th
+            scope="col"
+            class="hide-right"
+          >
+            Roster value
+          </th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(player, index) in players" :key="player.id">
+        <tr
+          v-for="(player, index) in players"
+          :key="player.id"
+        >
           <td scope="row">
-            <span v-if="index < 3" class="badge bg-dark">
+            <span
+              v-if="index < 3"
+              class="badge bg-dark"
+            >
               <i class="bi bi-trophy-fill" /> {{ index + 1 }}
             </span>
-            <span v-else class="badge bg-secondary">
+            <span
+              v-else
+              class="badge bg-secondary"
+            >
               {{ index + 1 }}
             </span>
           </td>
           <td>
             <strong>{{ player.username }}</strong>
           </td>
-          <td>{{ formatNumber(player.rankPoints) }}</td>
+          <td>{{ formatNumber(player.pveRankPoints) }}</td>
+          <td>{{ formatNumber(player.pvpRankPoints) }}</td>
           <td class="hide-right">
             {{ formatNumber(player.rosterValue) }} gold
           </td>
         </tr>
       </tbody>
     </table>
-    <div v-else class="text-center py-5">
+    <div
+      v-else
+      class="text-center py-5"
+    >
       <i class="bi bi-people display-1 text-muted" />
-      <p class="mt-3 text-muted">No players found in the leaderboard yet.</p>
+      <p class="mt-3 text-muted">
+        No players found in the leaderboard yet.
+      </p>
     </div>
   </div>
 </template>
@@ -72,7 +111,8 @@ import { db } from "@/core/firebase/store";
 interface LeaderboardPlayer {
   id: string;
   username: string;
-  rankPoints: number;
+  pveRankPoints: number;
+  pvpRankPoints: number;
   rosterValue: number;
 }
 
@@ -91,7 +131,8 @@ const fetchLeaderboard = async (forceRefresh = false): Promise<void> => {
   try {
     const leaderboardQuery = query(
       collection(db, "leaderboard"),
-      orderBy("rankPoints", "desc"),
+      orderBy("pveRankPoints", "desc"),
+      orderBy("pvpRankPoints", "desc"),
       orderBy("rosterValue", "desc"),
       limit(50),
     );
@@ -106,13 +147,17 @@ const fetchLeaderboard = async (forceRefresh = false): Promise<void> => {
       leaderboardData.push({
         id: doc.id,
         username: data.username || "Anonymous Trainer",
-        rankPoints: data.rankPoints || 0,
+        pveRankPoints: data.pveRankPoints || 0,
+        pvpRankPoints: data.pvpRankPoints || 0,
         rosterValue: data.rosterValue || 0,
       });
     });
 
     leaderboardData.sort(
-      (a, b) => b.rankPoints - a.rankPoints || b.rosterValue - a.rosterValue,
+      (a, b) =>
+        b.pveRankPoints - a.pveRankPoints ||
+        b.pvpRankPoints - a.pvpRankPoints ||
+        b.rosterValue - a.rosterValue,
     );
     players.value = leaderboardData;
   } catch (err) {
