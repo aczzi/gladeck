@@ -1,8 +1,10 @@
 <template>
   <div class="card bg-dark text-light mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div
+      class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+    >
       <span><i class="bi bi-shield-fill" /> Barracks</span>
-      <div class="d-flex gap-2">
+      <div class="d-flex gap-2 flex-wrap">
         <span class="badge bg-secondary"
           >{{ gladiatorCount }}/{{ capacity }} gladiators</span
         >
@@ -29,12 +31,13 @@
           class="list-group-item bg-dark text-light"
           :class="{ 'border-start border-1 border-warning': gladiator.resting }"
         >
-          <div class="d-flex justify-content-between align-items-center gap-2">
-            <div class="d-flex align-items-center gap-2">
+          <div
+            class="d-flex justify-content-between align-items-center gap-2 flex-wrap"
+          >
+            <div class="d-flex align-items-center gap-2 flex-wrap">
               <input
                 :value="gladiator.name"
-                class="form-control form-control-sm bg-dark text-light"
-                style="width: 160px"
+                class="form-control form-control-sm bg-dark text-light gladiator-name-input"
                 @change="renameGladiator(gladiator.id, $event)"
               />
               <button
@@ -261,3 +264,15 @@ const retireGladiator = (gladiatorId: string) => {
   );
 };
 </script>
+
+<style scoped>
+.gladiator-name-input {
+  width: 160px;
+}
+
+@media (max-width: 576px) {
+  .gladiator-name-input {
+    width: 120px;
+  }
+}
+</style>

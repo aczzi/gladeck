@@ -1,12 +1,14 @@
 <template>
   <div class="card bg-dark text-light mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div
+      class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+    >
       <span><i class="bi bi-shop" /> Market - Level {{ level }}</span>
-      <div class="d-flex gap-2">
+      <div class="d-flex gap-2 flex-wrap">
         <span class="badge bg-secondary">
           {{
-            dailyTradesLeft > 0
-              ? `${dailyTradesLeft} trades left today`
+            tradesLeftThisHour > 0
+              ? `${tradesLeftThisHour} trades left`
               : `Trades reset in ${formatCooldown(tradesResetCooldownMs)}`
           }}
         </span>
@@ -19,7 +21,7 @@
           :disabled="
             gold < recruitCost ||
             gladiatorCount >= capacity ||
-            dailyTradesLeft <= 0
+            tradesLeftThisHour <= 0
           "
           @click="recruit"
         >
@@ -43,20 +45,28 @@
         <div class="col-auto">
           <button
             class="btn btn-danger"
-            :disabled="!selectedGladiatorId || dailyTradesLeft <= 0"
+            :disabled="!selectedGladiatorId || tradesLeftThisHour <= 0"
             @click="sellGladiator"
           >
             <i class="bi bi-currency-exchange" /> Sell
           </button>
         </div>
       </div>
+      <BuildingLevelsTable :current-level="level" :rows="levelRows" />
       <button
+        v-if="!isMaxLevel"
         class="btn btn-outline-light"
-        :disabled="gold < upgradeCost"
+        :disabled="gold < upgradeCost || isTradeCooldownActive"
+        :title="
+          isTradeCooldownActive
+            ? 'Wait for trades to reset before upgrading'
+            : ''
+        "
         @click="upgrade"
       >
         Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
       </button>
+      <span v-else class="badge bg-success">Max level</span>
     </div>
   </div>
 </template>
@@ -65,10 +75,13 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { Timestamp } from "firebase/firestore";
 import { useGameStore } from "@/core/store/gameStore";
+import BuildingLevelsTable from "@/components/buildings/BuildingLevelsTable.vue";
 import {
-  marketDailyTrades,
+  marketTradesPerHour,
   marketTradesResetCooldownRemainingMs,
   buildingUpgradeCost,
+  isBuildingMaxLevel,
+  MAX_BUILDING_LEVEL,
   barracksCapacity,
   createGladiator,
   gladiatorSellValue,
@@ -80,11 +93,19 @@ const RECRUIT_COST = 50;
 const { userData, gold, updateUserData } = useGameStore();
 
 const level = computed(() => userData.value?.buildings.market.level || 1);
-const dailyTradesLeft = computed(
-  () => userData.value?.buildings.market.dailyTradesLeft || 0,
+const tradesLeftThisHour = computed(
+  () => userData.value?.buildings.market.tradesLeftThisHour || 0,
 );
+const isMaxLevel = computed(() => isBuildingMaxLevel(level.value));
 const upgradeCost = computed(() => buildingUpgradeCost(level.value));
 const recruitCost = RECRUIT_COST;
+const levelRows = computed(() =>
+  Array.from({ length: MAX_BUILDING_LEVEL }, (_, i) => i + 1).map((lvl) => ({
+    level: lvl,
+    cost: lvl === 1 ? null : buildingUpgradeCost(lvl - 1),
+    boost: `${marketTradesPerHour(lvl)} trades/hour`,
+  })),
+);
 
 // Ticks every second so the "trades reset in..." countdown stays live.
 const now = ref(Date.now());
@@ -105,6 +126,11 @@ const tradesResetCooldownMs = computed(() =>
   ),
 );
 
+// Upgrading refills tradesLeftThisHour to the new level's allowance, so
+// allowing it mid-cooldown would let gold buy an extra free refill on top
+// of the one already queued up for when the hourly reset fires.
+const isTradeCooldownActive = computed(() => tradesLeftThisHour.value <= 0);
+
 const formatCooldown = (ms: number) => {
   const totalMinutes = Math.ceil(ms / 60000);
   const hours = Math.floor(totalMinutes / 60);
@@ -112,9 +138,9 @@ const formatCooldown = (ms: number) => {
   return `${hours}h ${minutes}m`;
 };
 
-// Once the 24h cooldown elapses, silently refill dailyTradesLeft - this is a
-// deterministic daily refresh (unlike the Fan Donation Luck Boost roll), so
-// it doesn't need an explicit player click.
+// Once the 1h cooldown elapses, silently refill tradesLeftThisHour - this is
+// a deterministic hourly refresh (unlike the Fan Donation Luck Boost roll),
+// so it doesn't need an explicit player click.
 watch(
   tradesResetCooldownMs,
   (remaining) => {
@@ -124,7 +150,7 @@ watch(
         ...userData.value.buildings,
         market: {
           ...userData.value.buildings.market,
-          dailyTradesLeft: marketDailyTrades(level.value),
+          tradesLeftThisHour: marketTradesPerHour(level.value),
           lastTradeReset: Timestamp.now(),
         },
       },
@@ -165,7 +191,7 @@ const recruit = () => {
     !userData.value ||
     gold.value < recruitCost ||
     gladiatorCount.value >= capacity.value ||
-    dailyTradesLeft.value <= 0
+    tradesLeftThisHour.value <= 0
   )
     return;
   const gladiator = createGladiator();
@@ -180,7 +206,7 @@ const recruit = () => {
         ...userData.value.buildings,
         market: {
           ...userData.value.buildings.market,
-          dailyTradesLeft: dailyTradesLeft.value - 1,
+          tradesLeftThisHour: tradesLeftThisHour.value - 1,
         },
       },
     },
@@ -192,7 +218,7 @@ const sellGladiator = () => {
   if (
     !userData.value ||
     !selectedGladiatorId.value ||
-    dailyTradesLeft.value <= 0
+    tradesLeftThisHour.value <= 0
   )
     return;
   const gladiator = userData.value.gladiators[selectedGladiatorId.value];
@@ -200,8 +226,8 @@ const sellGladiator = () => {
   const gain = sellValue(gladiator);
   const gladiators = { ...userData.value.gladiators };
   delete gladiators[gladiator.id];
-  // Deterministic (no RNG) and already rate-limited by dailyTradesLeft - a
-  // reload before the next batch just un-sells the gladiator (no gold, no
+  // Deterministic (no RNG) and already rate-limited by tradesLeftThisHour -
+  // a reload before the next batch just un-sells the gladiator (no gold, no
   // trade spent), not exploitable. Safe to batch normally.
   updateUserData({
     profile: { ...userData.value.profile, gold: gold.value + gain },
@@ -210,14 +236,20 @@ const sellGladiator = () => {
       ...userData.value.buildings,
       market: {
         ...userData.value.buildings.market,
-        dailyTradesLeft: dailyTradesLeft.value - 1,
+        tradesLeftThisHour: tradesLeftThisHour.value - 1,
       },
     },
   });
 };
 
 const upgrade = () => {
-  if (!userData.value || gold.value < upgradeCost.value) return;
+  if (
+    !userData.value ||
+    gold.value < upgradeCost.value ||
+    isMaxLevel.value ||
+    isTradeCooldownActive.value
+  )
+    return;
   updateUserData({
     profile: {
       ...userData.value.profile,
@@ -228,7 +260,7 @@ const upgrade = () => {
       market: {
         ...userData.value.buildings.market,
         level: level.value + 1,
-        dailyTradesLeft: marketDailyTrades(level.value + 1),
+        tradesLeftThisHour: marketTradesPerHour(level.value + 1),
       },
     },
   });

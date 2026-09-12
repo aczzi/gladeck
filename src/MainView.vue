@@ -13,7 +13,7 @@
           <h5 id="howToPlay" class="modal-title">Gladeck</h5>
           <button
             type="button"
-            class="btn-close"
+            class="btn-close btn-close-white"
             aria-label="Close"
             @click="showHowToPlayModal = false"
           />
@@ -202,7 +202,7 @@
                     </h5>
                     <button
                       type="button"
-                      class="btn-close"
+                      class="btn-close btn-close-white"
                       aria-label="Close"
                       @click="showLeaderboardModal = false"
                     />
@@ -230,7 +230,7 @@
                     </h5>
                     <button
                       type="button"
-                      class="btn-close"
+                      class="btn-close btn-close-white"
                       aria-label="Close"
                       @click="showUserModal = false"
                     />
@@ -307,6 +307,8 @@ const {
   setUser,
   logout,
   bindAdminData,
+  unbindAdminData,
+  syncLeaderboardEntry,
   bindUserData,
   unbindUserData,
   setError,
@@ -555,6 +557,7 @@ onMounted((): void => {
               );
               await handleLogout();
             });
+            await syncLeaderboardEntry();
           } else {
             devLog(
               "Existing user access denied (admin service inaccessible):",
@@ -580,6 +583,7 @@ onMounted((): void => {
               );
               await handleLogout();
             });
+            await syncLeaderboardEntry();
           }
         }
       } catch (error: any) {
@@ -625,5 +629,6 @@ onUnmounted(async (): Promise<void> => {
   if (isAuthenticated.value) {
     await unbindUserData();
   }
+  await unbindAdminData();
 });
 </script>

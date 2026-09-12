@@ -4,11 +4,14 @@ import { db } from "@/core/firebase/store";
 import {
   doc,
   onSnapshot,
-  deleteDoc,
+  serverTimestamp,
+  setDoc,
   updateDoc,
+  writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
 import type { UserData, AdminData } from "@/core/game/types";
+import { gladiatorSellValue } from "@/core/game/gameRules";
 import {
   isSessionAlive,
   onSessionInvalidated,
@@ -16,8 +19,10 @@ import {
   setFlushBeforeInvalidationCallback,
 } from "@/core/firebase/sessionManager";
 
-// Store for unsubscribe functions
+// Keep the two listeners independent: binding user data must never orphan the
+// admin listener (and vice versa).
 let unsubscribeUserData: Unsubscribe | null = null;
+let unsubscribeAdminData: Unsubscribe | null = null;
 
 const UPDATE_DELAY_MS = 25000; // 25 seconds
 
@@ -30,22 +35,32 @@ let storeCommitFunction: any = null;
 let storeGettersFunction: any = null;
 let isNewUser: boolean = false;
 let canCommitUpdates: boolean = true;
+let commitPromise: Promise<void> | null = null;
 
-// Helper function to commit accumulated updates to Firebase
-const commitAccumulatedUpdates = async () => {
-  try {
+const hasAccumulatedUpdates = () => Object.keys(updateAccumulator).length > 0;
+
+const buildLeaderboardEntry = (userData: UserData) => ({
+  username: userData.profile.username,
+  rankPoints: userData.profile.rankPoints,
+  rosterValue: Object.values(userData.gladiators).reduce(
+    (sum, gladiator) =>
+      sum + gladiatorSellValue(gladiator.stats, gladiator.battlesFought || 0),
+    0,
+  ),
+  updatedAt: serverTimestamp(),
+});
+
+// Drain accumulated updates through one serialized writer. A batch is detached
+// before awaiting Firestore so changes arriving during the request remain in
+// the accumulator for the next loop iteration.
+const drainAccumulatedUpdates = async () => {
+  while (hasAccumulatedUpdates()) {
     if (!canCommitUpdates) {
-      devWarn("Session invalidated - discarding accumulated updates");
-      updateAccumulator = {};
-      storeCommitFunction?.("SET_PENDING_CHANGES", false);
-      return;
+      throw new Error("Session invalidated - update remains pending");
     }
 
     if (!isSessionAlive()) {
-      devWarn("Session not alive - discarding accumulated updates");
-      updateAccumulator = {};
-      storeCommitFunction?.("SET_PENDING_CHANGES", false);
-      return;
+      throw new Error("Session not alive - update remains pending");
     }
 
     devLog(
@@ -54,27 +69,57 @@ const commitAccumulatedUpdates = async () => {
       "key object accumulated",
     );
 
-    if (Object.keys(updateAccumulator).length === 0) {
-      return;
-    }
-
     const user = storeGettersFunction?.user;
     if (!user || !user.uid) {
-      devLog("No user authenticated, skipping commit");
-      return;
+      throw new Error("No user authenticated - update remains pending");
     }
 
-    const userDocRef = doc(db, "users", user.uid);
-    await updateDoc(userDocRef, updateAccumulator);
+    const pendingBatch = updateAccumulator;
     updateAccumulator = {};
-    storeCommitFunction("SET_PENDING_CHANGES", false);
-  } catch (error) {
-    devError("Error committing accumulated updates:", error);
-    storeCommitFunction(
-      "SET_ERROR",
-      `Failed to commit user data updates:\n${error}`,
-    );
+    const userDocRef = doc(db, "users", user.uid);
+    try {
+      const updatesLeaderboard =
+        "profile" in pendingBatch || "gladiators" in pendingBatch;
+      const currentUserData = storeGettersFunction?.userData as UserData | null;
+
+      if (updatesLeaderboard && currentUserData) {
+        const batch = writeBatch(db);
+        batch.update(userDocRef, pendingBatch);
+        batch.set(
+          doc(db, "leaderboard", user.uid),
+          buildLeaderboardEntry(currentUserData),
+        );
+        await batch.commit();
+      } else {
+        await updateDoc(userDocRef, pendingBatch);
+      }
+    } catch (error) {
+      // Newer local values win when restoring the failed batch.
+      updateAccumulator = { ...pendingBatch, ...updateAccumulator };
+      storeCommitFunction?.("SET_PENDING_CHANGES", true);
+      throw error;
+    }
   }
+
+  storeCommitFunction?.("SET_PENDING_CHANGES", false);
+};
+
+const commitAccumulatedUpdates = (): Promise<void> => {
+  if (!commitPromise) {
+    commitPromise = drainAccumulatedUpdates()
+      .catch((error) => {
+        devError("Error committing accumulated updates:", error);
+        storeCommitFunction?.(
+          "SET_ERROR",
+          `Failed to commit user data updates:\n${error}`,
+        );
+        throw error;
+      })
+      .finally(() => {
+        commitPromise = null;
+      });
+  }
+  return commitPromise;
 };
 
 // Start the periodic timer for automatic updates
@@ -84,26 +129,35 @@ const startPeriodicUpdates = () => {
   }
 
   canCommitUpdates = true;
-  updateTimer = setInterval(async () => {
-    await commitAccumulatedUpdates();
+  updateTimer = setInterval(() => {
+    void commitAccumulatedUpdates().catch(() => {
+      // The accumulator is preserved and the next interval will retry it.
+    });
   }, UPDATE_DELAY_MS);
   devLog(`Periodic updates started every ${UPDATE_DELAY_MS / 1000}s`);
 };
 
 // Stop the periodic timer
-const stopPeriodicUpdates = () => {
+const stopPeriodicUpdates = (discardPending = false) => {
   if (updateTimer) {
     clearInterval(updateTimer);
     updateTimer = null;
     devLog("Periodic updates stopped");
   }
   canCommitUpdates = false;
-  if (Object.keys(updateAccumulator).length > 0) {
+  if (discardPending && hasAccumulatedUpdates()) {
     devWarn(
       `Discarding ${Object.keys(updateAccumulator).length} pending updates`,
     );
     updateAccumulator = {};
+    storeCommitFunction?.("SET_PENDING_CHANGES", false);
   }
+};
+
+const restartPeriodicUpdates = () => {
+  if (updateTimer) clearInterval(updateTimer);
+  updateTimer = null;
+  startPeriodicUpdates();
 };
 
 // Mark user as newly created (forces immediate sync for first updates)
@@ -153,7 +207,7 @@ export default createStore({
         startPeriodicUpdates();
       }
       if (!user && updateTimer) {
-        stopPeriodicUpdates();
+        stopPeriodicUpdates(true);
       }
     },
 
@@ -185,7 +239,7 @@ export default createStore({
         error: null,
         hasPendingChanges: false,
       };
-      stopPeriodicUpdates();
+      stopPeriodicUpdates(true);
       updateAccumulator = {};
     },
   },
@@ -198,7 +252,7 @@ export default createStore({
 
       onSessionInvalidated(() => {
         devWarn("Session invalidated - stopping all updates");
-        stopPeriodicUpdates();
+        stopPeriodicUpdates(true);
       });
 
       setUpdateUserDataCallback(async (data: any) => {
@@ -226,6 +280,8 @@ export default createStore({
         try {
           commit("SET_LOADED", false);
           devLog("Binding admin data");
+          unsubscribeAdminData?.();
+          unsubscribeAdminData = null;
           const userDocRef = doc(db, "admin", "configuration");
 
           const timeout = setTimeout(() => {
@@ -235,7 +291,7 @@ export default createStore({
             reject(new Error("Timeout loading admin data"));
           }, 10000);
 
-          unsubscribeUserData = onSnapshot(
+          unsubscribeAdminData = onSnapshot(
             userDocRef,
             (docSnapshot) => {
               clearTimeout(timeout);
@@ -275,6 +331,8 @@ export default createStore({
         try {
           commit("SET_LOADED", false);
           devLog("Binding user data for:", userId);
+          unsubscribeUserData?.();
+          unsubscribeUserData = null;
 
           const userDocRef = doc(db, "users", userId);
 
@@ -328,11 +386,9 @@ export default createStore({
       });
     },
 
-    unbindUserData({ commit, dispatch }: any) {
-      if (Object.keys(updateAccumulator).length > 0) {
-        dispatch("flushUserDataUpdates").catch((error: any) =>
-          devError("Error flushing before unbind:", error),
-        );
+    async unbindUserData({ commit, dispatch }: any) {
+      if (hasAccumulatedUpdates()) {
+        await dispatch("flushUserDataUpdates");
       }
 
       if (unsubscribeUserData) {
@@ -345,6 +401,22 @@ export default createStore({
       commit("SET_USERDATA", null);
     },
 
+    unbindAdminData({ commit }: any) {
+      unsubscribeAdminData?.();
+      unsubscribeAdminData = null;
+      commit("SET_ADMIN_DATA", null);
+    },
+
+    async syncLeaderboardEntry({ getters }: any) {
+      const user = getters.user;
+      const userData = getters.userData as UserData | null;
+      if (!user?.uid || !userData) return;
+      await setDoc(
+        doc(db, "leaderboard", user.uid),
+        buildLeaderboardEntry(userData),
+      );
+    },
+
     async deleteUserData({ commit, dispatch, getters }: any) {
       const user = getters.user;
       if (!user || !user.uid) {
@@ -353,8 +425,10 @@ export default createStore({
       try {
         commit("SET_LOADED", false);
         await dispatch("unbindUserData");
-        const userDocRef = doc(db, "users", user.uid);
-        await deleteDoc(userDocRef);
+        const batch = writeBatch(db);
+        batch.delete(doc(db, "users", user.uid));
+        batch.delete(doc(db, "leaderboard", user.uid));
+        await batch.commit();
         commit("SET_USERDATA", null);
         commit("SET_USER", null);
       } catch (error) {
@@ -427,8 +501,7 @@ export default createStore({
 
         await commitAccumulatedUpdates();
 
-        stopPeriodicUpdates();
-        startPeriodicUpdates();
+        restartPeriodicUpdates();
 
         devLog("Forced update completed, timer reset");
       } catch (error) {

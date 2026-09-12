@@ -1,4 +1,13 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "leaderboard",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "rankPoints", "order": "DESCENDING" },
+        { "fieldPath": "rosterValue", "order": "DESCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

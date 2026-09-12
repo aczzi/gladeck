@@ -12,7 +12,7 @@
           <h5 class="modal-title">Sign in with Email</h5>
           <button
             type="button"
-            class="btn-close"
+            class="btn-close btn-close-white"
             aria-label="Close"
             @click="close"
           />

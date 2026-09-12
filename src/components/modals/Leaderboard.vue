@@ -68,8 +68,6 @@ import {
   getDocsFromServer,
 } from "firebase/firestore";
 import { db } from "@/core/firebase/store";
-import { gladiatorSellValue } from "@/core/game/gameRules";
-import type { Gladiator } from "@/core/game/types";
 
 interface LeaderboardPlayer {
   id: string;
@@ -77,14 +75,6 @@ interface LeaderboardPlayer {
   rankPoints: number;
   rosterValue: number;
 }
-
-const rosterValue = (
-  gladiators: Record<string, Gladiator> | undefined,
-): number =>
-  Object.values(gladiators || {}).reduce(
-    (sum, g) => sum + gladiatorSellValue(g.stats, g.battlesFought || 0),
-    0,
-  );
 
 const players = ref<LeaderboardPlayer[]>([]);
 const loading = ref(false);
@@ -100,8 +90,9 @@ const fetchLeaderboard = async (forceRefresh = false): Promise<void> => {
 
   try {
     const leaderboardQuery = query(
-      collection(db, "users"),
-      orderBy("profile.rankPoints", "desc"),
+      collection(db, "leaderboard"),
+      orderBy("rankPoints", "desc"),
+      orderBy("rosterValue", "desc"),
       limit(50),
     );
 
@@ -114,9 +105,9 @@ const fetchLeaderboard = async (forceRefresh = false): Promise<void> => {
       const data = doc.data();
       leaderboardData.push({
         id: doc.id,
-        username: data.profile?.username || "Anonymous Trainer",
-        rankPoints: data.profile?.rankPoints || 0,
-        rosterValue: rosterValue(data.gladiators),
+        username: data.username || "Anonymous Trainer",
+        rankPoints: data.rankPoints || 0,
+        rosterValue: data.rosterValue || 0,
       });
     });
 

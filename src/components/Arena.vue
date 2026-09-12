@@ -8,7 +8,7 @@
           </h5>
           <button
             type="button"
-            class="btn-close"
+            class="btn-close btn-close-white"
             aria-label="Close"
             @click="$emit('close')"
           />
@@ -96,7 +96,7 @@
               </div>
               <div class="text-center">
                 <label for="betInput" class="form-label">
-                  Gold wager - win to double it back
+                  Gold wager - win to double it back (max {{ maxBet }})
                 </label>
                 <div
                   class="input-group input-group-sm justify-content-center mb-3 mx-auto"
@@ -108,10 +108,12 @@
                     type="number"
                     class="form-control"
                     min="0"
-                    :max="gold"
+                    :max="Math.min(gold, maxBet)"
                     @change="clampBet"
                   />
-                  <span class="input-group-text">/ {{ gold }} gold</span>
+                  <span class="input-group-text"
+                    >/ {{ Math.min(gold, maxBet) }} gold</span
+                  >
                 </div>
                 <button
                   class="btn btn-danger btn-lg"
@@ -229,8 +231,8 @@
                     style="max-height: 220px; overflow-y: auto"
                   >
                     <li
-                      v-for="(entry, index) in displayedLog"
-                      :key="index"
+                      v-for="entry in reversedDisplayedLog"
+                      :key="entry.turn"
                       class="list-group-item bg-dark text-light d-flex justify-content-between align-items-center"
                     >
                       <span>
@@ -311,6 +313,7 @@ import {
   getTrainingPoints,
   TRAINING_POINT_PER_VICTORY,
   MAX_COMBAT_ROUNDS,
+  arenaMaxBet,
 } from "@/core/game/gameRules";
 import type { CombatResult, CombatLogEntry } from "@/core/game/types";
 import {
@@ -347,6 +350,10 @@ const result = ref<CombatResult | null>(null);
 const bet = ref(0);
 const lastBet = ref(0);
 
+const maxBet = computed(() =>
+  arenaMaxBet(userData.value?.buildings.fanDonation.level || 1),
+);
+
 // Battlefield display state - populated in engage() from the exact units
 // resolveCombat was called with (never mutated by it - see resolveCombat's
 // own cloning), then animated turn-by-turn against liveHp/displayedLog.
@@ -357,6 +364,9 @@ const activeAttackerId = ref<string | null>(null);
 const activeTargetId = ref<string | null>(null);
 const unitEffect = ref<Record<string, "hit" | "crit" | "dodge" | null>>({});
 const displayedLog = ref<CombatLogEntry[]>([]);
+// Newest entry first, so the player sees the latest action without having
+// to scroll the (fixed-height) log list.
+const reversedDisplayedLog = computed(() => [...displayedLog.value].reverse());
 const animating = ref(false);
 const currentRound = computed(
   () => displayedLog.value[displayedLog.value.length - 1]?.round ?? 0,
@@ -505,7 +515,7 @@ const clampBet = () => {
   if (!Number.isFinite(bet.value) || bet.value < 0) {
     bet.value = 0;
   } else {
-    bet.value = Math.min(Math.floor(bet.value), gold.value);
+    bet.value = Math.min(Math.floor(bet.value), gold.value, maxBet.value);
   }
   persistPendingCombat();
 };

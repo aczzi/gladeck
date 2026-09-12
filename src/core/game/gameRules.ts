@@ -29,7 +29,10 @@ export const CRIT_CHANCE_CAP = 0.3;
 export const DODGE_CHANCE_CAP = 0.2;
 export const CRIT_MULTIPLIER = 1.5;
 
-export const VICTORY_GOLD_REWARD = 300;
+// Flat gold reward on top of the arena wager payout (see arenaMaxBet and
+// Arena.vue's engage() - a win returns 2x the wager plus this flat amount,
+// a loss just forfeits the wager).
+export const VICTORY_GOLD_REWARD = 50;
 
 export const TRAINING_PROGRAM_UPGRADE_COOLDOWN_MS = 30 * 60 * 1000;
 export const TRAINING_POINT_PER_VICTORY = 1;
@@ -469,6 +472,15 @@ export function fanDonationGoldSinceLastCollection(
   return Math.floor(fanDonationGoldPerDay(level, legacyPoints) * elapsedDays);
 }
 
+// Arena wager cap: tied to Fan Donation level so betting can't outrun the
+// player's actual economy - otherwise a lucky early wager can snowball into
+// stakes way beyond what the current gold income supports.
+export const ARENA_MAX_BET_PER_FAN_DONATION_LEVEL = 100;
+
+export function arenaMaxBet(fanDonationLevel: number): number {
+  return fanDonationLevel * ARENA_MAX_BET_PER_FAN_DONATION_LEVEL;
+}
+
 // Barracks: base storage capacity, no building upgrade. each retired
 // gladiator (profile.legacyPoints) permanently adds one slot on top of it.
 export const BARRACKS_BASE_CAPACITY = 8;
@@ -542,9 +554,8 @@ export function trainingProgramUpgradeGoldCost(trait?: GladiatorTrait): number {
 }
 
 // Infirmary: instant heal, gated by a per-gladiator cooldown.
-// Heal % = 0.3 + (Level * 0.05) of Max HP, applied immediately.
 export function infirmaryHealPercent(level: number): number {
-  return Math.min(0.9, 0.3 + level * 0.05);
+  return Math.min(0.6, 0.15 + level * 0.05);
 }
 
 export function infirmaryHealCooldownRemainingMs(
@@ -575,12 +586,12 @@ export function infirmaryMaxRestingGladiators(level: number): number {
   return Math.min(4, level);
 }
 
-// Market: daily trades unlocked scale with level.
-export function marketDailyTrades(level: number): number {
-  return level * 2;
+// Market: trades unlocked per hour scale with level.
+export function marketTradesPerHour(level: number): number {
+  return (level % 2) + level;
 }
 
-// dailyTradesLeft refills back to marketDailyTrades(level) once every 60 minutes.
+// tradesLeftThisHour refills back to marketTradesPerHour(level) once every 60 minutes.
 export const MARKET_TRADES_RESET_COOLDOWN_MS = 60 * 60 * 1000;
 
 export function marketTradesResetCooldownRemainingMs(
@@ -593,9 +604,16 @@ export function marketTradesResetCooldownRemainingMs(
 }
 
 // Generic building upgrade cost, shared across all 5 buildings.
-// Placeholder curve - tune during Phase 6 balancing (ROADMAP.md Phase 6).
 export function buildingUpgradeCost(level: number): number {
   return 100 * level * level;
+}
+
+// Fan Donation, Training Program, Infirmary and Market all top out at this
+// level - Barracks has no level (see barracksCapacity, legacy-point driven).
+export const MAX_BUILDING_LEVEL = 9;
+
+export function isBuildingMaxLevel(level: number): boolean {
+  return level >= MAX_BUILDING_LEVEL;
 }
 
 // ====== Gladiator experience & value ======
@@ -773,7 +791,7 @@ export const startBuildings: Buildings = {
   infirmary: { level: 1 },
   market: {
     level: 1,
-    dailyTradesLeft: marketDailyTrades(1),
+    tradesLeftThisHour: marketTradesPerHour(1),
     lastTradeReset: Timestamp.now(),
   },
 };

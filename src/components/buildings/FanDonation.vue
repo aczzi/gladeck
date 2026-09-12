@@ -1,6 +1,8 @@
 <template>
   <div class="card bg-dark text-light mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div
+      class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+    >
       <span
         ><i class="bi bi-gift-fill" /> Fan donation - Level {{ level }}</span
       >
@@ -27,14 +29,17 @@
           <i class="bi bi-download" /> Collect
         </button>
       </div>
+      <BuildingLevelsTable :current-level="level" :rows="levelRows" />
       <div class="d-flex gap-2 mb-3">
         <button
+          v-if="!isMaxLevel"
           class="btn btn-outline-light"
           :disabled="gold < upgradeCost"
           @click="upgrade"
         >
           Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
         </button>
+        <span v-else class="badge bg-success align-self-center">Max level</span>
       </div>
     </div>
   </div>
@@ -44,10 +49,13 @@
 import { computed } from "vue";
 import { Timestamp } from "firebase/firestore";
 import { useGameStore } from "@/core/store/gameStore";
+import BuildingLevelsTable from "@/components/buildings/BuildingLevelsTable.vue";
 import {
   fanDonationGoldPerDay,
   fanDonationGoldSinceLastCollection,
   buildingUpgradeCost,
+  isBuildingMaxLevel,
+  MAX_BUILDING_LEVEL,
   LEGACY_BONUS_PERCENT_PER_RETIREE,
 } from "@/core/game/gameRules";
 
@@ -70,7 +78,15 @@ const pendingGold = computed(() =>
       )
     : 0,
 );
+const isMaxLevel = computed(() => isBuildingMaxLevel(level.value));
 const upgradeCost = computed(() => buildingUpgradeCost(level.value));
+const levelRows = computed(() =>
+  Array.from({ length: MAX_BUILDING_LEVEL }, (_, i) => i + 1).map((lvl) => ({
+    level: lvl,
+    cost: lvl === 1 ? null : buildingUpgradeCost(lvl - 1),
+    boost: `${fanDonationGoldPerDay(lvl, legacyPoints.value).toFixed(0)} gold/day`,
+  })),
+);
 
 const collect = () => {
   if (!userData.value || pendingGold.value <= 0) return;
@@ -90,7 +106,8 @@ const collect = () => {
 };
 
 const upgrade = () => {
-  if (!userData.value || gold.value < upgradeCost.value) return;
+  if (!userData.value || gold.value < upgradeCost.value || isMaxLevel.value)
+    return;
   updateUserData({
     profile: {
       ...userData.value.profile,

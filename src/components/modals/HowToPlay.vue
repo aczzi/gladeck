@@ -76,7 +76,8 @@
             <p class="card-text small mb-0 text-muted">
               Crowd loves your team and offer gold over time. Amount is based on
               its level. Collect it whenever you like - no cap on how long it
-              piles up.
+              piles up. Its level also caps how much gold you can wager in the
+              Arena (100 gold per level).
             </p>
           </div>
         </div>

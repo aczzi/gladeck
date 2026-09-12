@@ -1,6 +1,8 @@
 <template>
   <div class="card bg-dark text-light mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div
+      class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+    >
       <span
         ><i class="bi bi-mortarboard-fill" /> Training Program - Level
         {{ level }}</span
@@ -65,13 +67,16 @@
           </button>
         </div>
       </div>
+      <BuildingLevelsTable :current-level="level" :rows="levelRows" />
       <button
+        v-if="!isMaxLevel"
         class="btn btn-outline-light"
         :disabled="gold < upgradeCost"
         @click="upgradeTrainingProgram"
       >
         Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
       </button>
+      <span v-else class="badge bg-success">Max level</span>
     </div>
   </div>
 </template>
@@ -80,11 +85,14 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { Timestamp } from "firebase/firestore";
 import { useGameStore } from "@/core/store/gameStore";
+import BuildingLevelsTable from "@/components/buildings/BuildingLevelsTable.vue";
 import {
   trainingProgramBonusPercent,
   trainingProgramUpgradeCooldownRemainingMs,
   trainingProgramUpgradeGoldCost,
   buildingUpgradeCost,
+  isBuildingMaxLevel,
+  MAX_BUILDING_LEVEL,
   applyTrainingProgramUpgrade,
   rollTrainingInjury,
   canAffordTrainingProgramUpgrade,
@@ -101,7 +109,15 @@ const level = computed(
   () => userData.value?.buildings.trainingProgram.level || 1,
 );
 const bonusPercent = computed(() => trainingProgramBonusPercent(level.value));
+const isMaxLevel = computed(() => isBuildingMaxLevel(level.value));
 const upgradeCost = computed(() => buildingUpgradeCost(level.value));
+const levelRows = computed(() =>
+  Array.from({ length: MAX_BUILDING_LEVEL }, (_, i) => i + 1).map((lvl) => ({
+    level: lvl,
+    cost: lvl === 1 ? null : buildingUpgradeCost(lvl - 1),
+    boost: `+${trainingProgramBonusPercent(lvl)}%`,
+  })),
+);
 
 const gladiators = computed(() =>
   Object.values(userData.value?.gladiators || {}),
@@ -216,7 +232,8 @@ const upgradeGladiator = () => {
 };
 
 const upgradeTrainingProgram = () => {
-  if (!userData.value || gold.value < upgradeCost.value) return;
+  if (!userData.value || gold.value < upgradeCost.value || isMaxLevel.value)
+    return;
   // No RNG and no state to lock in here - gold and level move together in
   // the same write, so a reload before the next batch just re-shows the
   // pre-upgrade state with the gold unspent. Safe to batch normally.

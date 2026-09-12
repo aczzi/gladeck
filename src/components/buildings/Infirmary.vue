@@ -1,11 +1,13 @@
 <template>
   <div class="card bg-dark text-light mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div
+      class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+    >
       <span
         ><i class="bi bi-heart-pulse-fill" /> Infirmary - Level
         {{ level }}</span
       >
-      <div class="d-flex gap-2">
+      <div class="d-flex gap-2 flex-wrap">
         <span class="badge bg-secondary"
           >{{ (healPercent * 100).toFixed(0) }}% max HP / heal</span
         >
@@ -51,13 +53,16 @@
           </button>
         </li>
       </ul>
+      <BuildingLevelsTable :current-level="level" :rows="levelRows" />
       <button
+        v-if="!isMaxLevel"
         class="btn btn-outline-light"
         :disabled="gold < upgradeCost"
         @click="upgrade"
       >
         Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
       </button>
+      <span v-else class="badge bg-success">Max level</span>
     </div>
   </div>
 </template>
@@ -67,6 +72,7 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import { Timestamp } from "firebase/firestore";
 import { useGameStore } from "@/core/store/gameStore";
 import type { Gladiator } from "@/core/game/types";
+import BuildingLevelsTable from "@/components/buildings/BuildingLevelsTable.vue";
 import {
   infirmaryHealPercent,
   infirmaryHeal,
@@ -74,6 +80,8 @@ import {
   infirmaryMaxRestingGladiators,
   INFIRMARY_HEAL_COST,
   buildingUpgradeCost,
+  isBuildingMaxLevel,
+  MAX_BUILDING_LEVEL,
 } from "@/core/game/gameRules";
 
 const { userData, gold, updateUserData } = useGameStore();
@@ -86,8 +94,16 @@ const restingCount = computed(
     Object.values(userData.value?.gladiators || {}).filter((g) => g.resting)
       .length,
 );
+const isMaxLevel = computed(() => isBuildingMaxLevel(level.value));
 const upgradeCost = computed(() => buildingUpgradeCost(level.value));
 const healCost = INFIRMARY_HEAL_COST;
+const levelRows = computed(() =>
+  Array.from({ length: MAX_BUILDING_LEVEL }, (_, i) => i + 1).map((lvl) => ({
+    level: lvl,
+    cost: lvl === 1 ? null : buildingUpgradeCost(lvl - 1),
+    boost: `${(infirmaryHealPercent(lvl) * 100).toFixed(0)}% heal, ${infirmaryMaxRestingGladiators(lvl)} beds`,
+  })),
+);
 
 const injuredGladiators = computed(() =>
   Object.values(userData.value?.gladiators || {}).filter(
@@ -140,7 +156,8 @@ const heal = (gladiatorId: string) => {
 };
 
 const upgrade = () => {
-  if (!userData.value || gold.value < upgradeCost.value) return;
+  if (!userData.value || gold.value < upgradeCost.value || isMaxLevel.value)
+    return;
   updateUserData({
     profile: {
       ...userData.value.profile,

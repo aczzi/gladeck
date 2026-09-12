@@ -58,7 +58,7 @@ export interface InfirmaryBuilding {
 
 export interface MarketBuilding {
   level: number;
-  dailyTradesLeft: number;
+  tradesLeftThisHour: number;
   lastTradeReset: Timestamp;
 }
 

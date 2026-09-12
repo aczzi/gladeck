@@ -62,6 +62,12 @@ export function useGameStore() {
   const bindAdminData = async () => {
     await store.dispatch("bindAdminData");
   };
+  const unbindAdminData = async () => {
+    await store.dispatch("unbindAdminData");
+  };
+  const syncLeaderboardEntry = async () => {
+    await store.dispatch("syncLeaderboardEntry");
+  };
   const deleteUserData = async () => {
     await store.dispatch("deleteUserData");
   };
@@ -103,6 +109,8 @@ export function useGameStore() {
     bindUserData,
     unbindUserData,
     bindAdminData,
+    unbindAdminData,
+    syncLeaderboardEntry,
     setError,
   };
 }
