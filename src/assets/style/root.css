@@ -239,9 +239,9 @@ h6,
 .section-title:first-of-type {
   margin-top: 0;
 }
-.building-card {
+.description-card {
   transition: border-color 0.15s ease;
 }
-.building-card:hover {
+.description-card:hover {
   border-color: var(--gladiator-gold, #c9972c);
 }

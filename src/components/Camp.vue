@@ -13,8 +13,8 @@
       </div>
       <div class="col-md-6">
         <button
-          class="btn btn-danger btn-sm w-100 mb-3"
-          :disabled="!canFight"
+          class="btn btn-danger w-100 mb-3"
+          :disabled="!hasGladiators"
           @click="showArenaModal = true"
         >
           Send gladiators to combat (PvE)
@@ -22,14 +22,10 @@
         <Barracks />
         <div class="text-center mt-3">
           <p
-            v-if="!canFight"
+            v-if="!hasGladiators"
             class="alert alert-warning"
           >
-            {{
-              hasGladiators
-                ? "All your gladiators are resting - send at least one back to duty at the Barracks."
-                : "Recruit at least one gladiator at the Camp before you can fight."
-            }}
+            Recruit at least one gladiator at the Camp before you can fight.
           </p>
         </div>
       </div>
@@ -51,9 +47,6 @@ const { userData } = useGameStore();
 
 const hasGladiators = computed(
   () => Object.keys(userData.value?.gladiators || {}).length > 0,
-);
-const canFight = computed(() =>
-  Object.values(userData.value?.gladiators || {}).some((g) => !g.resting),
 );
 
 const showArenaModal = ref(false);

@@ -60,9 +60,10 @@ import {
   fanDonationGoldSinceLastCollection,
   buildingUpgradeCost,
   isBuildingMaxLevel,
-  MAX_BUILDING_LEVEL,
   LEGACY_BONUS_PERCENT_PER_RETIREE,
 } from "@/core/game/gameRules";
+
+import { MAX_BUILDING_LEVEL }  from "@/core/game/constantes";
 
 const { userData, gold, updateUserData } = useGameStore();
 

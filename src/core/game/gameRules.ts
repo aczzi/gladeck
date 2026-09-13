@@ -2,7 +2,48 @@
 // from this file for consistency (see .github/copilot-instructions.md).
 
 import { Timestamp } from "firebase/firestore";
-import { uniformRandInt, pickRandom, type RngFn } from "@/core/utils";
+import { uniformRandInt, type RngFn } from "@/core/utils";
+
+import {
+  MAX_COMBAT_ROUNDS,
+  STAT_MAX,
+  LUCK_CAP,
+  CRIT_CHANCE_CAP,
+  DODGE_CHANCE_CAP,
+  CRIT_MULTIPLIER,
+  VICTORY_GOLD_REWARD,
+  EXPERIENCE_BONUS_PER_FIGHT_PERCENT,
+  VICTORY_HP_MAX_GAIN,
+  VICTORY_LUCK_GAIN,
+  POWER_PER_BATTLE_FOUGHT,
+  SELL_VALUE_PER_BATTLE_FOUGHT_GOLD,
+  MAX_FRESH_RECRUIT_POWER,
+  TRAINING_PROGRAM_UPGRADE_COOLDOWN_MS,
+  TRAINING_PROGRAM_UPGRADE_GOLD_COST,
+  TRAINING_POINT_COST_PER_UPGRADE,
+  TRAINING_INJURY_LEVEL_THRESHOLD,
+  TRAINING_INJURY_CHANCE,
+  INFIRMARY_HEAL_COOLDOWN_MS,
+  MARKET_TRADES_RESET_COOLDOWN_MS,
+  COMBAT_HP_FLOOR,
+  TANK_TARGET_WEIGHT_MULTIPLIER,
+  TANK_DAMAGE_REDUCTION_PERCENT,
+  SUPPORT_TEAM_DEF_BUFF_PERCENT,
+  MAX_DPS_PER_TEAM,
+  DUO_BODYGUARD_ATK_BONUS_PERCENT, // "Bodyguard"
+  DUO_LUCKY_AEGIS_LUCK_SHARE_PERCENT, // "Lucky Aegis"
+  DUO_TWIN_FRENZY_ATK_BONUS_PERCENT, // "Twin Frenzy"
+  DUO_RAMPART_DEF_BONUS_PERCENT, // "Shield Wall"
+  DUO_CROWD_LUCKY_GOLD_BONUS_PERCENT, // "Rowdy Crowd"
+  DUO_RECKLESS_DUO_ATK_BONUS_PERCENT, // "Reckless Duo"
+  DUO_GLASS_CANNON_LUCK_BONUS_PERCENT, // "Glass Cannon"
+  ARENA_MAX_BET_PER_FAN_DONATION_LEVEL,
+  FAN_DONATION_BASE_GOLD_PER_DAY,
+  DOWNED_SURVIVAL_CHANCE_MIN,
+  DOWNED_SURVIVAL_CHANCE_MAX,
+  MAX_BUILDING_LEVEL,
+} from "@/core/game/constantes";
+
 import type {
   Gladiator,
   GladiatorStats,
@@ -17,85 +58,34 @@ import type {
   CombatLogEntry,
 } from "@/core/game/types";
 
-export const GLADIATORS_PER_BATTLE = 4;
-// Combat ends after this many rounds even if both sides are still standing
-// (see resolveCombat's HP-sum tie-break) - exported so the UI can show
-// "Round X / MAX_COMBAT_ROUNDS" during the fight.
-export const MAX_COMBAT_ROUNDS = 10;
-export const STAT_MIN = 0;
-export const STAT_MAX = 200;
-export const LUCK_CAP = 90;
+import {
+  TRAIT_BRUTE_TRAINING_BONUS_MULTIPLIER,
+  TRAIT_STOIC_SURVIVAL_CHANCE,
+  TRAIT_LUCKY_VICTORY_LUCK_GAIN,
+  TRAIT_BLOODTHIRSTY_ATK_GAIN_PER_KILL_PERCENT,
+  TRAIT_CROWD_FAVORITE_GOLD_BONUS_PERCENT,
+  TRAIT_INCORRIGIBLE_TRAINING_COST_DISCOUNT_PERCENT,
+  TRAIT_INCORRIGIBLE_INJURY_CHANCE_ADD,
+  CROWD_FAVORITE_MAX_STACK,
+  pickRandomTrait,
+} from "@/core/game/traits";
 
-export const CRIT_CHANCE_CAP = 0.3;
-export const DODGE_CHANCE_CAP = 0.2;
-export const CRIT_MULTIPLIER = 1.5;
-
-// Flat gold reward on top of the arena wager payout (see arenaMaxBet and
-// Arena.vue's engage() - a win returns 2x the wager plus this flat amount,
-// a loss just forfeits the wager).
-export const VICTORY_GOLD_REWARD = 50;
+import {
+  computeActiveDuoSynergies,
+  type DuoRoleTag,
+} from "@/core/game/synergies";
 
 // The wager itself is debited up front (Arena.vue's engage()) and this is
 // the net effect it should have once the fight resolves: +wager on a win
 // (the debited wager plus 2x back), -wager on a loss (never returned) -
 // never +2*wager, which would mean the wager was paid out twice without
 // ever having been debited.
+
 export function computeArenaWagerNetGold(
   wager: number,
   victory: boolean,
 ): number {
   return victory ? wager : -wager;
-}
-
-export const TRAINING_PROGRAM_UPGRADE_COOLDOWN_MS = 30 * 60 * 1000;
-export const TRAINING_POINT_PER_VICTORY = 1;
-export const TRAINING_POINT_COST_PER_UPGRADE = 1;
-
-export const INFIRMARY_HEAL_COOLDOWN_MS = 15 * 60 * 1000;
-export const INFIRMARY_HEAL_COST = 20;
-
-// ====== Gladiator traits (ROADMAP Phase 2 - individuality) ======
-// Rolled once at recruitment (createGladiator) and permanent. Each trait
-// gives a gladiator a reason to be trained/kept rather than being an
-// interchangeable stat bag.
-
-export const GLADIATOR_TRAITS: GladiatorTrait[] = [
-  "brute",
-  "stoic",
-  "lucky",
-  "bloodthirsty",
-  "crowdFavorite",
-  "incorrigible",
-];
-
-// Brute: Training Program Attack upgrades get +20% of the normal bonus
-// (multiplicative, not a flat point add) - a flat +10pp used to nearly
-// double the level-1 bonus (17% vs 7% for everyone else); scaling with the
-// base bonus instead keeps it proportionate at every Training Program level.
-export const TRAIT_BRUTE_TRAINING_BONUS_MULTIPLIER = 1.2;
-// Stoic ("Increvable"): a hit that would kill instead leaves 1 HP, this often.
-export const TRAIT_STOIC_SURVIVAL_CHANCE = 0.25;
-// Lucky: gains a flat +2 Luck per victory instead of the usual +1.
-export const TRAIT_LUCKY_VICTORY_LUCK_GAIN = 2;
-// Bloodthirsty: every knockdown lands compounds the killer's own Attack for
-// the rest of that same fight (resolveCombat works on cloned units, so this
-// never persists between fights). Triggers exactly once per knockdown, on
-// justDowned - see resolveCombat.
-export const TRAIT_BLOODTHIRSTY_ATK_GAIN_PER_KILL_PERCENT = 5;
-// Crowd Favorite: flat % more gold on victory, per Crowd Favorite gladiator
-// sent - stacks if several are sent to the same fight, up to this cap so a
-// team can't stack the bonus without limit.
-export const TRAIT_CROWD_FAVORITE_GOLD_BONUS_PERCENT = 20;
-export const CROWD_FAVORITE_MAX_STACK = 2;
-// Incorrigible: cheaper Training Program upgrades, but an extra personal
-// injury risk stacked on top of the level-gated one (see rollTrainingInjury).
-export const TRAIT_INCORRIGIBLE_TRAINING_COST_DISCOUNT_PERCENT = 35;
-export const TRAIT_INCORRIGIBLE_INJURY_CHANCE_ADD = 0.1;
-
-export const COMBAT_HP_FLOOR = 1;
-
-export function pickRandomTrait(rng: RngFn = Math.random): GladiatorTrait {
-  return GLADIATOR_TRAITS[uniformRandInt(GLADIATOR_TRAITS.length, rng)];
 }
 
 // ====== §3 Roster & Attribution ======
@@ -132,21 +122,6 @@ export function applyAttribution(
 // distributeRivalBudget), rather than only through applyAttribution's stat
 // multipliers which only the trainer's own gladiators go through.
 
-// Tank: gets targeted roughly 3x as often as a non-Tank ally...
-export const TANK_TARGET_WEIGHT_MULTIPLIER = 3;
-// ...and shrugs off 10% of any hit that does land.
-export const TANK_DAMAGE_REDUCTION_PERCENT = 10;
-// Support: each one grants the whole side +8% Defense, stacking per Support
-// present - a flat collective buff applied once before the fight starts.
-export const SUPPORT_TEAM_DEF_BUFF_PERCENT = 8;
-// Composition rule: at most this many DPS per team. A full 4-gladiator team
-// still frees up its other two slots for Tank/Support in any mix (TT, SS or
-// TS all end up allowed simply by leaving them unconstrained), but the cap
-// is a ceiling rather than an exact requirement so it also works when fewer
-// than GLADIATORS_PER_BATTLE gladiators are available to send (a team of 1
-// or 2 can never exceed it anyway - the cap only actually bites at 3 or 4).
-export const MAX_DPS_PER_TEAM = 2;
-
 export function isValidTeamComposition(attributions: Attribution[]): boolean {
   return (
     attributions.filter((attribution) => attribution === "dps").length <=
@@ -161,6 +136,74 @@ function applySupportTeamBuff(units: CombatUnit[]): void {
   const multiplier = 1 + (SUPPORT_TEAM_DEF_BUFF_PERCENT * supportCount) / 100;
   for (const unit of units) {
     unit.def *= multiplier;
+  }
+}
+
+// ====== Axe B - Duo synergies (ROADMAP.md, curated combos) ======
+// A short, hand-picked list of (trait, role) pairs, not an exhaustive
+// matrix of the 18 possible tags - see ROADMAP.md Axe B for the full
+// rationale. Applied once before combat starts, on the already
+// role-modified units, the same way applySupportTeamBuff is above -
+// deliberately not a per-turn mechanic, to keep this isolated from the
+// active-ability work in Axe C.
+
+function tagsFromUnits(units: CombatUnit[]): DuoRoleTag[] {
+  return units
+    .filter((u): u is CombatUnit & { trait: GladiatorTrait } => !!u.trait)
+    .map((u) => ({ trait: u.trait, attribution: u.attribution }));
+}
+
+// Mutates units in place with the flat stat bonus of every active duo -
+// "Rowdy Crowd" (gold) isn't handled here since it isn't a stat, see
+// resolveCombat's reward block instead.
+function applyDuoSynergyStatBonuses(units: CombatUnit[]): void {
+  const active = new Set(
+    computeActiveDuoSynergies(tagsFromUnits(units)).map((s) => s.id),
+  );
+  if (active.has("bodyguard")) {
+    const dps = units.find(
+      (u) => u.trait === "bloodthirsty" && u.attribution === "dps",
+    );
+    if (dps) dps.atk *= 1 + DUO_BODYGUARD_ATK_BONUS_PERCENT / 100;
+  }
+  if (active.has("lucky-aegis")) {
+    const support = units.find(
+      (u) => u.trait === "lucky" && u.attribution === "support",
+    );
+    const tank = units.find(
+      (u) => u.trait === "lucky" && u.attribution === "tank",
+    );
+    if (support && tank) {
+      tank.luck += (support.luck * DUO_LUCKY_AEGIS_LUCK_SHARE_PERCENT) / 100;
+    }
+  }
+  if (active.has("twin-frenzy")) {
+    for (const unit of units.filter(
+      (u) => u.trait === "bloodthirsty" && u.attribution === "dps",
+    )) {
+      unit.atk *= 1 + DUO_TWIN_FRENZY_ATK_BONUS_PERCENT / 100;
+    }
+  }
+  if (active.has("rampart")) {
+    for (const unit of units.filter(
+      (u) =>
+        u.trait === "brute" &&
+        (u.attribution === "tank" || u.attribution === "support"),
+    )) {
+      unit.def *= 1 + DUO_RAMPART_DEF_BONUS_PERCENT / 100;
+    }
+  }
+  if (active.has("reckless-duo")) {
+    const tank = units.find(
+      (u) => u.trait === "brute" && u.attribution === "tank",
+    );
+    if (tank) tank.atk *= 1 + DUO_RECKLESS_DUO_ATK_BONUS_PERCENT / 100;
+  }
+  if (active.has("glass-cannon")) {
+    const dps = units.find(
+      (u) => u.trait === "incorrigible" && u.attribution === "dps",
+    );
+    if (dps) dps.luck *= 1 + DUO_GLASS_CANNON_LUCK_BONUS_PERCENT / 100;
   }
 }
 
@@ -249,8 +292,8 @@ export const DIFFICULTY_GOLD_REWARD_MULTIPLIER: Record<
   number
 > = {
   easy: 1,
-  normal: 1,
-  hard: 1.5,
+  normal: 2,
+  hard: 5,
 };
 
 export const DIFFICULTY_RANK_POINTS_REWARD: Record<ArenaDifficulty, number> = {
@@ -278,10 +321,11 @@ export function computeCombatUnits(
     stats: GladiatorStats;
     attribution: Attribution;
     trait: GladiatorTrait;
+    battlesFought?: number;
   }[],
 ): CombatUnit[] {
   const units = sentGladiators.map(
-    ({ id, name, stats, attribution, trait }) => {
+    ({ id, name, stats, attribution, trait, battlesFought = 0 }) => {
       const mod = applyAttribution(stats, attribution);
       return {
         id,
@@ -293,10 +337,17 @@ export function computeCombatUnits(
         def: mod.def,
         initialHp: mod.hpCurrent,
         hpCurrent: mod.hpCurrent,
+        // Tier is read off the pre-attribution base stats (same source as
+        // pickArenaDifficultyForTeam's veteran count), not the role-modified
+        // combat stats - a DPS/Tank/Support swing shouldn't flip whether a
+        // gladiator can die.
+        isVeteran:
+          gladiatorPowerTier(gladiatorPower(stats, battlesFought)) !== "rookie",
       };
     },
   );
   applySupportTeamBuff(units);
+  applyDuoSynergyStatBonuses(units);
   return units;
 }
 
@@ -374,6 +425,19 @@ export function distributeRivalBudget(
         cap: Infinity,
       },
     ]);
+    // Rivals have no battle history of their own - their tier is read off
+    // the same power formula at battlesFought=0, purely from the stat
+    // budget they were dealt.
+    const isVeteran =
+      gladiatorPowerTier(
+        gladiatorPower({
+          atk: stats.atk,
+          def: stats.def,
+          luck: stats.luck,
+          hpMax: stats.hp,
+          hpCurrent: stats.hp,
+        }),
+      ) !== "rookie";
     return {
       id: `rival-${i}`,
       name: `Rival Gladiator ${i + 1}`,
@@ -383,6 +447,7 @@ export function distributeRivalBudget(
       def: stats.def,
       initialHp: stats.hp,
       hpCurrent: stats.hp,
+      isVeteran,
     } as CombatUnit;
   });
 
@@ -461,8 +526,6 @@ function isDowned(unit: CombatUnit): boolean {
 // Baseline 15% survival chance at 0 Luck, scaling up to a capped 85% at
 // LUCK_CAP - high Luck makes a knockout much less likely to be fatal, but
 // never a guarantee, so no gladiator is ever completely deathproof.
-export const DOWNED_SURVIVAL_CHANCE_MIN = 0.15;
-export const DOWNED_SURVIVAL_CHANCE_MAX = 0.85;
 
 export function computeDownedSurvivalChance(luck: number): number {
   const ratio = Math.max(0, Math.min(1, luck / LUCK_CAP));
@@ -476,7 +539,10 @@ export function computeDownedSurvivalChance(luck: number): number {
 // single roll per unit, so nobody is executed or spared more than once.
 // Permadeath is a Hard-only stake (PvP later on) - Easy and Normal always
 // leave a knocked-down gladiator alive at the HP floor, so new/casual teams
-// can lose a fight without losing a gladiator.
+// can lose a fight without losing a gladiator. On Hard, it's also gated on
+// unit.isVeteran: a rookie is never at risk, on any difficulty - only a
+// veteran-or-above unit actually rolls computeDownedSurvivalChance and can
+// come back at 0 HP.
 function resolveDownedFates(
   units: CombatUnit[],
   rng: RngFn,
@@ -485,7 +551,9 @@ function resolveDownedFates(
   for (const unit of units) {
     if (!isDowned(unit)) continue;
     const survives =
-      difficulty !== "hard" || rng() < computeDownedSurvivalChance(unit.luck);
+      difficulty !== "hard" ||
+      !unit.isVeteran ||
+      rng() < computeDownedSurvivalChance(unit.luck);
     unit.hpCurrent = survives ? COMBAT_HP_FLOOR : 0;
   }
 }
@@ -555,7 +623,9 @@ export function resolveCombat(
     // The target entered this attack alive (pickTarget only returns
     // targetable, non-downed units), so any resulting knockdown is new.
     const justDowned = isDowned(target);
-    if (justDowned && attacker.trait === "bloodthirsty") {
+    const bloodthirstyTriggered =
+      justDowned && attacker.trait === "bloodthirsty";
+    if (bloodthirstyTriggered) {
       attacker.atk *= 1 + TRAIT_BLOODTHIRSTY_ATK_GAIN_PER_KILL_PERCENT / 100;
     }
 
@@ -573,6 +643,7 @@ export function resolveCombat(
       dodged,
       targetDowned: justDowned,
       survivedLethal,
+      bloodthirstyTriggered,
     });
   };
 
@@ -645,6 +716,17 @@ export function resolveCombat(
       )
     : 0;
 
+  // Duo synergies (ROADMAP.md Axe B) are read off the trainer's final
+  // (trait, role) tags - only "Rowdy Crowd" pays out gold, the other
+  // curated duos were already applied as stat bonuses before the fight (see
+  // applyDuoSynergyStatBonuses), but every active one is reported so the UI
+  // can show the full list regardless of outcome.
+  const activeDuoSynergies = computeActiveDuoSynergies(tagsFromUnits(trainer));
+  const duoSynergyBonusGold =
+    victory && activeDuoSynergies.some((s) => s.id === "crowd-lucky")
+      ? Math.round((baseGoldReward * DUO_CROWD_LUCKY_GOLD_BONUS_PERCENT) / 100)
+      : 0;
+
   return {
     victory,
     log,
@@ -660,7 +742,9 @@ export function resolveCombat(
     })),
     baseGoldReward,
     crowdFavoriteBonusGold,
-    goldGained: baseGoldReward + crowdFavoriteBonusGold,
+    duoSynergyBonusGold,
+    activeDuoSynergies,
+    goldGained: baseGoldReward + crowdFavoriteBonusGold + duoSynergyBonusGold,
     // PvE rank points scale with difficulty (see
     // DIFFICULTY_RANK_POINTS_REWARD) so the raw total is not purely a combat
     // volume counter, tracked separately from PvP (Profile.pveRankPoints/
@@ -670,20 +754,13 @@ export function resolveCombat(
 }
 // ====== §6 Buildings & economy ======
 
-// Fan donation: Resources/Day = (Base * Level) * (1 + 10% * sqrt(LegacyPoints))
-export const FAN_DONATION_BASE_GOLD_PER_DAY = 1000;
 
 export function fanDonationGoldPerDay(
   level: number,
   legacyPoints: number = 0,
 ): number {
-  const baseGold = FAN_DONATION_BASE_GOLD_PER_DAY * level;
-  // Diminishing returns via sqrt: retiree #1 is worth the full +10%, but the
-  // 4th is only worth +5% more (20% total instead of 40%) and the 9th only
-  // +3% more (30% instead of 90%) - retiring gladiators no longer compounds
-  // into an unbounded income multiplier.
-  const legacyMultiplier =
-    1 + (LEGACY_BONUS_PERCENT_PER_RETIREE * Math.sqrt(legacyPoints)) / 100;
+  const baseGold = FAN_DONATION_BASE_GOLD_PER_DAY * level ;
+  const legacyMultiplier =1 + (LEGACY_BONUS_PERCENT_PER_RETIREE * legacyPoints) / 100;
   return baseGold * legacyMultiplier;
 }
 
@@ -700,7 +777,6 @@ export function fanDonationGoldSinceLastCollection(
 // Arena wager cap: tied to Fan Donation level so betting can't outrun the
 // player's actual economy - otherwise a lucky early wager can snowball into
 // stakes way beyond what the current gold income supports.
-export const ARENA_MAX_BET_PER_FAN_DONATION_LEVEL = 100;
 
 export function arenaMaxBet(fanDonationLevel: number): number {
   return fanDonationLevel * ARENA_MAX_BET_PER_FAN_DONATION_LEVEL;
@@ -749,10 +825,6 @@ export function applyTrainingProgramUpgrade(
 
 // High-level training pushes gladiators hard enough to risk a minor injury.
 
-export const TRAINING_INJURY_LEVEL_THRESHOLD = 5;
-export const TRAINING_INJURY_CHANCE = 0.1;
-export const TRAINING_INJURY_HP_LOSS_PERCENT = 0.1;
-
 export function rollTrainingInjury(
   trainingProgramLevel: number,
   trait?: GladiatorTrait,
@@ -768,8 +840,6 @@ export function rollTrainingInjury(
 
 // Gold cost of a single Training Program gladiator upgrade, before trait
 // modifiers - Incorrigible gets a discount on top of this base cost.
-export const TRAINING_PROGRAM_UPGRADE_GOLD_COST = 30;
-
 export function trainingProgramUpgradeGoldCost(trait?: GladiatorTrait): number {
   const discount =
     trait === "incorrigible"
@@ -804,13 +874,6 @@ export function infirmaryHeal(
   return { ...stats, hpCurrent };
 }
 
-// How many gladiators can be resting (excluded from the arena draw) at
-// once - the Infirmary's beds are the limiting factor, so this scales with
-// its level. max 4 beds, so level 4+ is the cap.
-export function infirmaryMaxRestingGladiators(level: number): number {
-  return Math.min(4, level);
-}
-
 // Market: trades unlocked per hour scale with level - every level grants an
 // immediate extra trade (the old (level % 2) + level formula gave the same
 // count for two consecutive levels, e.g. levels 1-2 and 3-4).
@@ -822,10 +885,6 @@ export function marketTradesPerHour(level: number): number {
 // gladiatorSellValueMultiplier's flat rookie floor is calibrated against
 // this - a freshly recruited gladiator must never be resellable for more
 // than this, or recruit-then-sell becomes an infinite money exploit.
-export const MARKET_RECRUIT_COST = 50;
-
-// tradesLeftThisHour refills back to marketTradesPerHour(level) once every 60 minutes.
-export const MARKET_TRADES_RESET_COOLDOWN_MS = 60 * 60 * 1000;
 
 export function marketTradesResetCooldownRemainingMs(
   lastTradeReset: Timestamp | undefined,
@@ -843,7 +902,6 @@ export function buildingUpgradeCost(level: number): number {
 
 // Fan Donation, Training Program, Infirmary and Market all top out at this
 // level - Barracks has no level (see barracksCapacity, legacy-point driven).
-export const MAX_BUILDING_LEVEL = 9;
 
 export function isBuildingMaxLevel(level: number): boolean {
   return level >= MAX_BUILDING_LEVEL;
@@ -857,9 +915,6 @@ export function isBuildingMaxLevel(level: number): boolean {
 // applyTrainingProgramUpgrade - plus a flat +1 Max HP and +1 Luck per win.
 // A gladiator that dies is removed from the roster (Arena.vue), so this
 // only ever rewards survivors of a victory.
-export const EXPERIENCE_BONUS_PER_FIGHT_PERCENT = 1;
-export const VICTORY_HP_MAX_GAIN = 1;
-export const VICTORY_LUCK_GAIN = 1;
 
 // Tapers a flat Luck gain down the closer `currentLuck` already is to
 // LUCK_CAP - full gain far from the cap, next to nothing just below it, and
@@ -896,7 +951,6 @@ export function applyExperienceGain(
 // already grows the stats a little via applyExperienceGain, but this flat
 // per-fight bonus makes the veteran status itself visibly pay off in value,
 // not just the marginal stat gain.
-export const POWER_PER_BATTLE_FOUGHT = 2;
 
 export function gladiatorPower(
   stats: GladiatorStats,
@@ -919,28 +973,6 @@ export function gladiatorPowerTier(power: number): GladiatorPowerTier {
   if (power >= 160) return "veteran";
   return "rookie";
 }
-
-// Market sell price: base value from raw combat stats, plus a flat bonus
-// per battle won - a battle-tested veteran fetches more than a fresh
-// recruit with identical stats. The whole thing is then scaled by a
-// continuous curve over the gladiator's power, so training investment pays
-// off smoothly at resale instead of being a pure sink - the curve still
-// passes through the same anchor values the old per-tier multiplier used
-// (1x/3x/8x/10x at the tier thresholds from gladiatorPowerTier), but
-// interpolates between them instead of jumping the instant a single stat
-// point crosses a badge threshold (e.g. power 159 -> 160 used to almost
-// triple the sell value outright).
-export const SELL_VALUE_PER_BATTLE_FOUGHT_GOLD = 10;
-
-// generateRandomGladiatorStats rolls atk/def/hpMax up to 39 and luck up to
-// 34, so a freshly recruited gladiator's power (see gladiatorPower) can
-// never exceed 39+39+34+39 = 151. The curve MUST stay flat at the rookie
-// multiplier (1x) for every power at or below that, with margin - otherwise
-// a fresh recruit could be resold for more than MARKET_RECRUIT_COST paid to
-// create it, an infinite-money exploit. This is guarded by a regression
-// test in gameRules.test.ts. Only widen this floor if the stat generation
-// range above ever changes too.
-const MAX_FRESH_RECRUIT_POWER = 151;
 
 const SELL_VALUE_MULTIPLIER_CURVE: { power: number; multiplier: number }[] = [
   { power: 0, multiplier: 1 },
@@ -991,26 +1023,26 @@ export function generateRandomGladiatorStats(
   };
 }
 
-export function generateGladiatorName(rng: RngFn = Math.random): string {
-  return `Gladiator#${1000000 + uniformRandInt(9000000, rng)}`;
+export function generateGladiatorName(stats: GladiatorStats, id: string): string {
+  let root = "S";
+  if (stats.atk > stats.def)  root = "D";
+  if (stats.def > stats.atk)  root = "T";
+  return `${root}#${id}`;
 }
 
-let gladiatorIdCounter = 0;
-
 export function createGladiator(
-  name: string = generateGladiatorName(),
   rng: RngFn = Math.random,
 ): Gladiator {
-  gladiatorIdCounter += 1;
+  const id = `${1000000 + uniformRandInt(9000000, rng)}`
   const stats = generateRandomGladiatorStats(rng);
+  const name = generateGladiatorName(stats, id);
   return {
-    id: `${Date.now()}-${gladiatorIdCounter}-${uniformRandInt(1000, rng)}`,
+    id: `${Date.now()}-${id}`,
     name,
     stats,
     baseStats: { ...stats },
     trait: pickRandomTrait(rng),
     injured: false,
-    resting: false,
     battlesFought: 0,
     trainingPoints: 1,
   };
@@ -1022,16 +1054,6 @@ export function getTrainingPoints(gladiator: Gladiator): number {
 
 export function canAffordTrainingProgramUpgrade(gladiator: Gladiator): boolean {
   return getTrainingPoints(gladiator) >= TRAINING_POINT_COST_PER_UPGRADE;
-}
-
-// Send 4 gladiators at random from the trainer's whole camp into combat -
-// there is no separate "active roster" to curate, every recruited gladiator
-// is eligible except the ones the lanista deliberately rested.
-export function sendGladiatorsToCombat(
-  gladiators: Record<string, Gladiator>,
-): Gladiator[] {
-  const eligible = Object.values(gladiators).filter((g) => !g.resting);
-  return pickRandom(eligible, GLADIATORS_PER_BATTLE);
 }
 
 // ====== Retirement & legacy (ROADMAP Phase 1) ======

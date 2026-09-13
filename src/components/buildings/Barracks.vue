@@ -6,16 +6,6 @@
       <span><i class="bi bi-shield-fill" /> Barracks</span>
       <div class="d-flex gap-2 flex-wrap">
         <span class="badge bg-secondary">{{ gladiatorCount }}/{{ capacity }} gladiators</span>
-        <span
-          class="badge"
-          :class="
-            restingCount >= maxResting ? 'bg-warning text-dark' : 'bg-secondary'
-          "
-          title="Infirmary beds available"
-        >
-          <i class="bi bi-moon-stars" /> {{ restingCount }}/{{ maxResting }}
-          resting
-        </span>
       </div>
     </div>
     <div class="card-body">
@@ -34,14 +24,10 @@
           :key="gladiator.id"
           :gladiator="gladiator"
           :expanded="expandedId === gladiator.id"
-          :rest-disabled="!gladiator.resting && restingCount >= maxResting"
-          :rest-disabled-reason="`All ${maxResting} Infirmary beds are occupied - upgrade the Infirmary for more`"
-          :retire-disabled="!canRetireGladiator(gladiator)"
-          :retire-disabled-reason="`Needs at least ${retireMinBattles} battles fought`"
+          :can-retire="canRetireGladiator(gladiator)"
           :retire-bonus-percent="nextRetireeMarginalPercent"
           @toggle-details="toggleDetails(gladiator.id)"
           @rename="(name) => renameGladiator(gladiator.id, name)"
-          @toggle-resting="toggleResting(gladiator.id)"
           @retire="retireGladiator(gladiator.id)"
         />
       </div>
@@ -58,8 +44,6 @@ import {
   gladiatorPower,
   canRetireGladiator,
   fanDonationGoldPerDay,
-  RETIRE_MIN_BATTLES_FOUGHT,
-  infirmaryMaxRestingGladiators,
 } from "@/core/game/gameRules";
 
 const { userData, updateUserData } = useGameStore();
@@ -67,7 +51,6 @@ const { userData, updateUserData } = useGameStore();
 const capacity = computed(() =>
   barracksCapacity(userData.value?.profile.legacyPoints || 0),
 );
-const retireMinBattles = RETIRE_MIN_BATTLES_FOUGHT;
 
 const nextRetireeMarginalPercent = computed(() => {
   const legacyPoints = userData.value?.profile.legacyPoints || 0;
@@ -80,24 +63,13 @@ const gladiators = computed(() =>
   Object.values(userData.value?.gladiators || {}),
 );
 const gladiatorCount = computed(() => gladiators.value.length);
-const restingCount = computed(
-  () => gladiators.value.filter((g) => g.resting).length,
-);
-const maxResting = computed(() =>
-  infirmaryMaxRestingGladiators(userData.value?.buildings.infirmary.level || 1),
-);
 
-// Strongest gladiators surface first - the ones worth training up and
-// keeping around rather than selling off.
 const rankedGladiators = computed(() =>
   gladiators.value
     .map((gladiator) => ({
       ...gladiator,
-      // Gladiators recruited before these fields existed fall back to sane
-      // defaults instead of crashing the detail panel.
-      baseStats: gladiator.baseStats || gladiator.stats,
-      trait: gladiator.trait || "lucky",
-      resting: gladiator.resting || false,
+      baseStats: gladiator.stats,
+      trait: gladiator.trait,
       power: gladiatorPower(gladiator.stats, gladiator.battlesFought),
     }))
     .sort((a, b) => b.power - a.power),
@@ -116,19 +88,6 @@ const renameGladiator = (gladiatorId: string, name: string) => {
     gladiators: {
       ...userData.value.gladiators,
       [gladiatorId]: { ...gladiator, name },
-    },
-  });
-};
-
-const toggleResting = (gladiatorId: string) => {
-  if (!userData.value) return;
-  const gladiator = userData.value.gladiators[gladiatorId];
-  if (!gladiator) return;
-  if (!gladiator.resting && restingCount.value >= maxResting.value) return;
-  updateUserData({
-    gladiators: {
-      ...userData.value.gladiators,
-      [gladiatorId]: { ...gladiator, resting: !gladiator.resting },
     },
   });
 };

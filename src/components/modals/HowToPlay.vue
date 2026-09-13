@@ -12,7 +12,7 @@
     </h4>
     <div class="row g-3 mb-2">
       <div class="col-sm-6 col-lg-4">
-        <div class="card bg-dark text-light h-100 building-card">
+        <div class="card bg-dark text-light h-100 description-card">
           <div class="card-body">
             <h6 class="card-title">
               <i class="bi bi-shield-fill text-warning" /> Barracks
@@ -26,7 +26,7 @@
         </div>
       </div>
       <div class="col-sm-6 col-lg-4">
-        <div class="card bg-dark text-light h-100 building-card">
+        <div class="card bg-dark text-light h-100 description-card">
           <div class="card-body">
             <h6 class="card-title">
               <i class="bi bi-mortarboard-fill text-warning" /> Training Program
@@ -40,21 +40,20 @@
         </div>
       </div>
       <div class="col-sm-6 col-lg-4">
-        <div class="card bg-dark text-light h-100 building-card">
+        <div class="card bg-dark text-light h-100 description-card">
           <div class="card-body">
             <h6 class="card-title">
               <i class="bi bi-heart-pulse-fill text-warning" /> Infirmary
             </h6>
             <p class="card-text small mb-0 text-muted">
               Instantly heals one injured gladiator for a % of their max HP
-              (15-min cooldown per gladiator). Its level also caps how many
-              gladiators can be resting at once.
+              (15-min cooldown per gladiator).
             </p>
           </div>
         </div>
       </div>
       <div class="col-sm-6 col-lg-4">
-        <div class="card bg-dark text-light h-100 building-card">
+        <div class="card bg-dark text-light h-100 description-card">
           <div class="card-body">
             <h6 class="card-title">
               <i class="bi bi-shop text-warning" /> Market
@@ -67,7 +66,7 @@
         </div>
       </div>
       <div class="col-sm-6 col-lg-4">
-        <div class="card bg-dark text-light h-100 building-card">
+        <div class="card bg-dark text-light h-100 description-card">
           <div class="card-body">
             <h6 class="card-title">
               <i class="bi bi-gift-fill text-warning" /> Fan Donation
@@ -172,19 +171,13 @@
     </div>
     <div class="card bg-dark text-light mb-4">
       <div class="card-body small">
-        From the Barracks you cancheck gladiator's detail panel to see their
-        trait and how far their stats have grown since recruitment, put them to
-        <i class="bi bi-moon-stars-fill text-warning" />
-        <b class="text-warning">Rest</b>
-        so they're skipped by the random arena draw - limited to the Infirmary's
-        number of beds (equal to its level). This is the
-        <b>only way to influence who gets drawn</b> into the next fight, so use
-        it as your targeting tool: shield an injured or low-HP fighter from
-        another risky battle, protect a veteran after 10 battles can retire, or
-        bench your strongest gladiator so a loss can't take them from you. A
-        resting gladiator can still be healed, but can't be trained or sold
-        until they're sent back to duty. Or
-        <i class="bi bi-flag text-danger" /> <b class="text-danger">Retire</b>
+        From the Barracks you can check a gladiator's detail panel to see their
+        trait and how far their stats have grown since recruitment. Every
+        gladiator in the Barracks is eligible for the Arena - there's no
+        separate roster to unlock, you pick your squad fresh before each fight
+        (see Combat below). When the Barracks is full, make room by selling a
+        gladiator for gold, or by
+        <i class="bi bi-flag text-danger" /> <b class="text-danger">retiring</b>
         a battle-tested veteran (10+ battles fought) for a permanent +10% Fan
         Donation gold/day bonus and +1 Barracks slot, both stacking with every
         gladiator you retire.
@@ -195,9 +188,11 @@
       <i class="bi bi-shield-fill" /> Combat
     </h4>
     <p class="small text-muted">
-      Before each fight, 4 gladiators are drawn at random from everyone who
-      isn't resting - there's no roster to hand-pick, only who you've chosen to
-      protect with Rest (see The Camp above). Place on each an attribute:
+      Before each fight, build your squad: 4 slots, empty by default. Pick
+      gladiators from your whole Barracks to fill them - who you send is
+      entirely up to you - and give each one a role right on its card. Drag
+      slots to reorder or swap them; order matters, it's who acts first on your
+      side each round. The roles:
     </p>
     <div class="row g-3 mb-3">
       <div class="col-sm-4">
@@ -207,7 +202,7 @@
               <i class="bi bi-lightning-charge-fill" /> DPS
             </h6>
             <p class="card-text small mb-0 text-muted">
-              +20% Attack, +10% Luck, -10% Defense.
+              +20% Attack, -10% Defense.
             </p>
           </div>
         </div>
@@ -239,6 +234,37 @@
     </div>
 
     <h4 class="section-title">
+      <i class="bi bi-stars" /> Duo Synergies
+    </h4>
+    <p class="small text-muted">
+      A short, hand-picked list of trait + role pairs - send both members of a
+      pair in the same squad and get a free bonus on top of their stats. Not
+      exhaustive by design: these are worth planning your squad around, not a
+      full combinatorics table.
+    </p>
+    <div class="row g-3 mb-3">
+      <div
+        v-for="synergy in DUO_SYNERGIES"
+        :key="synergy.id"
+        class="col-sm-6 col-lg-4"
+      >
+        <div class="card bg-dark text-light h-100 description-card">
+          <div class="card-body">
+            <h6 class="card-title">
+              {{ synergy.label }}
+            </h6>
+            <p class="m-2">
+              <DuoSynergyInputs :slots="synergy.slots" />
+            </p>
+            <p class="card-text small mb-0 text-muted">
+              {{ synergy.description }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h4 class="section-title">
       <i class="bi bi-trophy-fill" /> Victory & Defeat
     </h4>
     <div class="row g-3">
@@ -258,8 +284,10 @@
               </li>
               <li>
                 On Hard only, a sent gladiator that was knocked down can be
-                finished off and not come back, even in a winning fight - Easy
-                and Normal never take a gladiator from you.
+                finished off and not come back - but only if they're a Veteran
+                or above. A Rookie always survives at 1 HP, on any difficulty.
+                Easy and Normal never take a gladiator from you, regardless of
+                rank.
               </li>
             </ul>
           </div>
@@ -275,8 +303,9 @@
               <li>No gold, no permanent stat gain this time.</li>
               <li>
                 Your gladiators come back exactly as they fought, possibly
-                knocked down and injured - only a Hard fight risks losing one
-                for good if it was knocked down and finished off.
+                knocked down and injured - only a Hard fight risks losing a
+                Veteran-or-above gladiator for good if it was knocked down and
+                finished off. Rookies are never at risk, on any difficulty.
               </li>
               <li>Your wager is forfeited.</li>
             </ul>
@@ -287,4 +316,7 @@
   </div>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { DUO_SYNERGIES } from "@/core/game/synergies";
+import DuoSynergyInputs from "@/components/subComponents/DuoSynergyInputs.vue";
+</script>

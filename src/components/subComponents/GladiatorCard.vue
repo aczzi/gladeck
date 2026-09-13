@@ -1,7 +1,7 @@
 <template>
   <div
     class="gladiator-card"
-    :class="[tierClass, { 'is-resting': gladiator.resting }]"
+    :class="tierClass"
   >
     <div class="gc-header">
       <div class="gc-name-edit">
@@ -25,13 +25,6 @@
         {{ tierLabel }}
       </span>
     </div>
-
-    <span
-      v-if="gladiator.resting"
-      class="gc-resting-overlay"
-    >
-      <i class="bi bi-moon-stars-fill" /> Resting
-    </span>
 
     <GladiatorStats
       :hp-current="gladiator.stats.hpCurrent"
@@ -65,18 +58,9 @@
       aria-label="Gladiator actions"
     >
       <button
-        type="button"
-        class="btn btn-outline-warning"
-        :disabled="restDisabled"
-        @click="$emit('toggle-resting')"
-      >
-        <i class="bi bi-moon-stars" />
-        {{ gladiator.resting ? "Send back to duty" : "Rest" }}
-      </button>
-      <button
+        v-if="canRetire"
         type="button"
         class="btn btn-outline-danger"
-        :disabled="retireDisabled"
         @click="$emit('retire')"
       >
         <i class="bi bi-flag" /> Retire
@@ -95,27 +79,16 @@
 import { computed, ref, watch } from "vue";
 import type { Gladiator } from "@/core/game/types";
 import { gladiatorPowerTier } from "@/core/game/gameRules";
-import {
-  traitLabel,
-  traitIcon,
-  traitBadgeClass,
-} from "@/core/game/traitPresentation";
+import { traitLabel, traitIcon, traitBadgeClass } from "@/core/game/traits";
 import GladiatorStats from "@/components/subComponents/GladiatorStats.vue";
 
 const props = withDefaults(
   defineProps<{
     gladiator: Gladiator & { power: number };
-    restDisabled?: boolean;
-    restDisabledReason?: string;
-    retireDisabled?: boolean;
-    retireDisabledReason?: string;
-    retireBonusPercent: number;
+    canRetire?: boolean;
   }>(),
   {
-    restDisabled: false,
-    restDisabledReason: "",
-    retireDisabled: false,
-    retireDisabledReason: "",
+    canRetire: false,
   },
 );
 
@@ -135,7 +108,6 @@ const statDelta = (current: number, base: number) => {
 
 const emit = defineEmits<{
   rename: [name: string];
-  "toggle-resting": [];
   retire: [];
 }>();
 

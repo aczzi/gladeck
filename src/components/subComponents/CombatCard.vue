@@ -14,9 +14,9 @@
       <span class="combat-card__name">{{ name }}</span>
       <span
         class="badge"
-        :class="attributionBadgeClass"
+        :class="setAttributionBadgeClass"
       >
-        <i :class="attributionIcon" />
+        <i :class="setAttributionIcon" />
       </span>
     </div>
 
@@ -57,12 +57,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Attribution, GladiatorTrait } from "@/core/game/types";
-import {
-  traitLabel,
-  traitIcon,
-  traitBadgeClass,
-} from "@/core/game/traitPresentation";
+import { traitLabel, traitIcon, traitBadgeClass } from "@/core/game/traits";
 import GladiatorStats from "@/components/subComponents/GladiatorStats.vue";
+import {
+  attributionIcon,
+  attributionBadgeClass,
+} from "@/core/game/attributions";
 
 const props = defineProps<{
   name: string;
@@ -76,22 +76,18 @@ const props = defineProps<{
   side: "trainer" | "rival";
   active: boolean;
   targeted: boolean;
-  effect: "hit" | "crit" | "dodge" | null;
+  effect: "hit" | "crit" | "dodge" | "frenzy" | null;
 }>();
 
 const isDowned = computed(() => props.hpCurrent > 0 && props.hpCurrent <= 1);
 const isDead = computed(() => props.hpCurrent <= 0);
 
-const attributionIcon = computed(() => {
-  if (props.attribution === "dps") return "bi bi-lightning-charge-fill";
-  if (props.attribution === "tank") return "bi bi-shield-fill";
-  return "bi bi-people-fill";
+const setAttributionIcon = computed(() => {
+  return attributionIcon(props.attribution);
 });
 
-const attributionBadgeClass = computed(() => {
-  if (props.attribution === "dps") return "text-bg-primary";
-  if (props.attribution === "tank") return "text-bg-info";
-  return "text-bg-secondary";
+const setAttributionBadgeClass = computed(() => {
+  return attributionBadgeClass(props.attribution);
 });
 </script>
 
@@ -213,5 +209,24 @@ const attributionBadgeClass = computed(() => {
 
 .combat-card--dodge {
   animation: combat-dodge-hop 0.4s ease;
+}
+
+@keyframes combat-frenzy-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0
+      color-mix(in srgb, var(--gladiator-blood) 0%, transparent);
+  }
+  40% {
+    box-shadow: 0 0 18px 5px
+      color-mix(in srgb, var(--gladiator-blood) 85%, transparent);
+  }
+}
+
+/* Bloodthirsty's stacking ATK gain on a knockdown - shown on the attacker,
+   not the target (ROADMAP.md Axe C: make an existing but silent trait
+   trigger visible). */
+.combat-card--frenzy {
+  animation: combat-frenzy-pulse 0.5s ease;
 }
 </style>

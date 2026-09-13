@@ -59,10 +59,6 @@
   );
 }
 
-.gladiator-card.is-resting {
-  opacity: 0.75;
-}
-
 .gc-header {
   display: flex;
   align-items: center;
@@ -126,20 +122,6 @@
   border-radius: 6px;
   padding: 2px 6px;
   white-space: nowrap;
-}
-
-.gc-resting-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--gladiator-gold-bright);
-  background: color-mix(in srgb, var(--gladiator-bg) 75%, transparent);
-  border-radius: 10px;
 }
 
 .gc-bar-track {

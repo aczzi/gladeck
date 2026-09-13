@@ -85,17 +85,17 @@ import { computed, onMounted, onUnmounted, ref, watch, watchEffect } from "vue";
 import { Timestamp } from "firebase/firestore";
 import { useGameStore } from "@/core/store/gameStore";
 import BuildingLevelsTable from "@/components/buildings/BuildingLevelsTable.vue";
+import { MARKET_RECRUIT_COST } from "@/core/game/constantes";
 import {
   marketTradesPerHour,
   marketTradesResetCooldownRemainingMs,
   buildingUpgradeCost,
   isBuildingMaxLevel,
-  MAX_BUILDING_LEVEL,
-  MARKET_RECRUIT_COST,
   barracksCapacity,
   createGladiator,
   gladiatorSellValue,
 } from "@/core/game/gameRules";
+import { MAX_BUILDING_LEVEL } from "@/core/game/constantes";
 import type { Gladiator } from "@/core/game/types";
 
 const { userData, gold, updateUserData } = useGameStore();
@@ -184,10 +184,8 @@ const gladiatorCount = computed(
   () => Object.keys(userData.value?.gladiators || {}).length,
 );
 
-// Resting gladiators are off duty, not off the roster - they can't be sold
-// while resting.
 const sellableGladiators = computed(() =>
-  Object.values(userData.value?.gladiators || {}).filter((g) => !g.resting),
+  Object.values(userData.value?.gladiators || {}),
 );
 const selectedGladiatorId = ref<string>("");
 
@@ -240,7 +238,7 @@ const sellGladiator = () => {
   )
     return;
   const gladiator = userData.value.gladiators[selectedGladiatorId.value];
-  if (!gladiator || gladiator.resting) return;
+  if (!gladiator) return;
   const gain = sellValue(gladiator);
   const gladiators = { ...userData.value.gladiators };
   delete gladiators[gladiator.id];

@@ -49,7 +49,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { STAT_MAX, LUCK_CAP } from "@/core/game/gameRules";
+import { STAT_MAX, LUCK_CAP } from "@/core/game/constantes";
 
 const props = withDefaults(
   defineProps<{

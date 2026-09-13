@@ -7,15 +7,6 @@
         {{ level }}</span>
       <div class="d-flex gap-2 flex-wrap">
         <span class="badge bg-secondary">{{ (healPercent * 100).toFixed(0) }}% max HP / heal</span>
-        <span
-          class="badge"
-          :class="
-            restingCount >= restSlots ? 'bg-warning text-dark' : 'bg-secondary'
-          "
-        >
-          <i class="bi bi-moon-stars" /> {{ restingCount }}/{{ restSlots }}
-          rest beds
-        </span>
       </div>
     </div>
     <div class="card-body">
@@ -80,26 +71,19 @@ import { useGameStore } from "@/core/store/gameStore";
 import type { Gladiator } from "@/core/game/types";
 import BuildingLevelsTable from "@/components/buildings/BuildingLevelsTable.vue";
 import {
+  gladiatorPower,
   infirmaryHealPercent,
   infirmaryHeal,
   infirmaryHealCooldownRemainingMs,
-  infirmaryMaxRestingGladiators,
-  INFIRMARY_HEAL_COST,
   buildingUpgradeCost,
   isBuildingMaxLevel,
-  MAX_BUILDING_LEVEL,
 } from "@/core/game/gameRules";
+import { INFIRMARY_HEAL_COST, MAX_BUILDING_LEVEL } from "@/core/game/constantes";
 
 const { userData, gold, updateUserData } = useGameStore();
 
 const level = computed(() => userData.value?.buildings.infirmary.level || 1);
 const healPercent = computed(() => infirmaryHealPercent(level.value));
-const restSlots = computed(() => infirmaryMaxRestingGladiators(level.value));
-const restingCount = computed(
-  () =>
-    Object.values(userData.value?.gladiators || {}).filter((g) => g.resting)
-      .length,
-);
 const isMaxLevel = computed(() => isBuildingMaxLevel(level.value));
 const upgradeCost = computed(() => buildingUpgradeCost(level.value));
 const healCost = INFIRMARY_HEAL_COST;
@@ -107,14 +91,14 @@ const levelRows = computed(() =>
   Array.from({ length: MAX_BUILDING_LEVEL }, (_, i) => i + 1).map((lvl) => ({
     level: lvl,
     cost: lvl === 1 ? null : buildingUpgradeCost(lvl - 1),
-    boost: `${(infirmaryHealPercent(lvl) * 100).toFixed(0)}% heal, ${infirmaryMaxRestingGladiators(lvl)} beds`,
+    boost: `${(infirmaryHealPercent(lvl) * 100).toFixed(0)}% heal`,
   })),
 );
 
 const injuredGladiators = computed(() =>
   Object.values(userData.value?.gladiators || {}).filter(
     (gladiator) => gladiator.injured,
-  ),
+  ).sort((a, b) => gladiatorPower(b.stats, b.battlesFought) - gladiatorPower(a.stats, a.battlesFought)),
 );
 
 // Ticks every second so the cooldown countdown stays live in the UI.

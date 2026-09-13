@@ -1,6 +1,6 @@
 # Copilot AI Agent Instructions
 
-Vue 3 + TypeScript deckbuilding/village-management game, with persistent state in Firebase Firestore. Project structure is based on `/Users/antoine.cozzi/perso/colorcollection` (Vuex accumulator store, single-session enforcement, one Firestore document per user). Game design source of truth is `ROADMAP.md` at the repo root.
+Vue 3 + TypeScript deckbuilding/village-management game, with persistent state in Firebase Firestore. Project structure is based on `/Users/antoine.cozzi/perso/colorcollection` (Vuex accumulator store, single-session enforcement, one Firestore document per user). Game design source of truth is `ROADMAP.md` at the repo root if exists.
 Every text in the codebase must be only in English without any emojis.
 
 ## Architecture & Key Patterns

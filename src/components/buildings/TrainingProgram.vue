@@ -21,19 +21,16 @@
               :value="gladiator.id"
               :disabled="
                 cooldownRemaining(gladiator) > 0 ||
-                  gladiator.resting ||
                   !canAffordTrainingProgramUpgrade(gladiator)
               "
             >
               {{ gladiator.name }} ({{ getTrainingPoints(gladiator) }} training
               pt{{ getTrainingPoints(gladiator) === 1 ? "" : "s" }}){{
-                gladiator.resting
-                  ? " (resting)"
-                  : !canAffordTrainingProgramUpgrade(gladiator)
-                    ? " (no training points)"
-                    : cooldownRemaining(gladiator) > 0
-                      ? ` (cooldown ${formatCooldown(cooldownRemaining(gladiator))})`
-                      : ""
+                !canAffordTrainingProgramUpgrade(gladiator)
+                  ? " (no training points)"
+                  : cooldownRemaining(gladiator) > 0
+                    ? ` (cooldown ${formatCooldown(cooldownRemaining(gladiator))})`
+                    : ""
               }}
             </option>
           </select>
@@ -59,7 +56,6 @@
               !selectedGladiatorId ||
                 gold < upgradeGladiatorCost ||
                 selectedGladiatorCooldown > 0 ||
-                !!selectedGladiator?.resting ||
                 !selectedGladiatorCanAfford
             "
             @click="upgradeGladiator"
@@ -106,15 +102,18 @@ import {
   trainingProgramUpgradeGoldCost,
   buildingUpgradeCost,
   isBuildingMaxLevel,
-  MAX_BUILDING_LEVEL,
   applyTrainingProgramUpgrade,
   rollTrainingInjury,
   canAffordTrainingProgramUpgrade,
   getTrainingPoints,
-  TRAINING_INJURY_HP_LOSS_PERCENT,
-  TRAINING_POINT_COST_PER_UPGRADE,
+  gladiatorPower,
   type TrainingProgramTrainableStat,
 } from "@/core/game/gameRules";
+import {
+  TRAINING_INJURY_HP_LOSS_PERCENT,
+  TRAINING_POINT_COST_PER_UPGRADE,
+  MAX_BUILDING_LEVEL,
+} from "@/core/game/constantes";
 import type { Gladiator } from "@/core/game/types";
 
 const { userData, gold, updateUserData } = useGameStore();
@@ -134,7 +133,7 @@ const levelRows = computed(() =>
 );
 
 const gladiators = computed(() =>
-  Object.values(userData.value?.gladiators || {}),
+  Object.values(userData.value?.gladiators || {}).sort((a, b) => gladiatorPower(b.stats, b.battlesFought) - gladiatorPower(a.stats, a.battlesFought)),
 );
 const selectedGladiatorId = ref<string>("");
 const selectedStat = ref<TrainingProgramTrainableStat>("atk");
@@ -143,7 +142,7 @@ watch(
   gladiators,
   (list) => {
     if (!selectedGladiatorId.value) {
-      selectedGladiatorId.value = list.find((g) => !g.resting)?.id || "";
+      selectedGladiatorId.value = list[0]?.id || "";
     }
   },
   { immediate: true },
@@ -199,7 +198,6 @@ const upgradeGladiator = () => {
   if (
     gold.value < cost ||
     cooldownRemaining(gladiator) > 0 ||
-    gladiator.resting ||
     !canAffordTrainingProgramUpgrade(gladiator)
   )
     return;

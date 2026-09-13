@@ -1,23 +1,27 @@
 import { describe, it, expect } from "vitest";
 import type { RngFn } from "@/core/utils";
-import type { ArenaDifficulty, Attribution } from "@/core/game/types";
+import type {
+  ArenaDifficulty,
+  Attribution,
+  GladiatorTrait,
+} from "@/core/game/types";
+import {
+  computeActiveDuoSynergies,
+  tagMatchesSlot,
+  DUO_SYNERGIES,
+} from "@/core/game/synergies";
+import { TRAIT_INCORRIGIBLE_TRAINING_COST_DISCOUNT_PERCENT } from "@/core/game/traits";
 import {
   computeArenaWagerNetGold,
   isValidTeamComposition,
-  MAX_DPS_PER_TEAM,
   computeCombatUnits,
   computeAverageTeamPower,
   computeRivalBudget,
   distributeRivalBudget,
   resolveCombat,
   computeDownedSurvivalChance,
-  DOWNED_SURVIVAL_CHANCE_MIN,
-  DOWNED_SURVIVAL_CHANCE_MAX,
-  COMBAT_HP_FLOOR,
-  LUCK_CAP,
   gladiatorSellValueMultiplier,
   gladiatorSellValue,
-  MARKET_RECRUIT_COST,
   marketTradesPerHour,
   fanDonationGoldPerDay,
   generateRandomGladiatorStats,
@@ -26,7 +30,25 @@ import {
   pickRandomDifficulty,
   pickArenaDifficultyForTeam,
   ARENA_DIFFICULTIES,
+  trainingProgramUpgradeGoldCost,
 } from "@/core/game/gameRules";
+
+import {
+  DOWNED_SURVIVAL_CHANCE_MIN,
+  DOWNED_SURVIVAL_CHANCE_MAX,
+  TRAINING_PROGRAM_UPGRADE_GOLD_COST,
+  LUCK_CAP,
+  MARKET_RECRUIT_COST,
+  COMBAT_HP_FLOOR,
+  MAX_DPS_PER_TEAM,
+  DUO_BODYGUARD_ATK_BONUS_PERCENT, // "Bodyguard"
+  DUO_LUCKY_AEGIS_LUCK_SHARE_PERCENT, // "Lucky Aegis"
+  DUO_TWIN_FRENZY_ATK_BONUS_PERCENT, // "Twin Frenzy"
+  DUO_RAMPART_DEF_BONUS_PERCENT, // "Shield Wall"
+  DUO_CROWD_LUCKY_GOLD_BONUS_PERCENT, // "Rowdy Crowd"
+  DUO_RECKLESS_DUO_ATK_BONUS_PERCENT, // "Reckless Duo"
+  DUO_GLASS_CANNON_LUCK_BONUS_PERCENT, // "Glass Cannon"
+} from "@/core/game/constantes";
 
 // Deterministic PRNG (mulberry32) so every simulation run below is
 // reproducible - this is the "injectable random source" required by the
@@ -229,15 +251,26 @@ describe("computeDownedSurvivalChance", () => {
   });
 });
 
-describe("resolveCombat - permadeath is Hard-only", () => {
+describe("resolveCombat - permadeath is Hard-only and veteran-only", () => {
   // 0 Luck pins dodge chance at exactly 0 (computeDodgeChance), so the weak
   // side is guaranteed to get hit and knocked down rather than occasionally
   // dodging its way through all MAX_COMBAT_ROUNDS - the overwhelming stat
   // gap then guarantees a loss, never a mutual near-miss.
-  const weak = {
-    id: "weak",
-    name: "weak",
+  //
+  // gladiatorPower(stats, 0) = atk + def + luck + hpMax (rookie < 160 <=
+  // veteran), so hpMax alone is enough to flip tier without changing how
+  // fast either one folds against `strong` below.
+  const rookieWeak = {
+    id: "rookie-weak",
+    name: "rookie-weak",
     stats: { atk: 1, def: 1, luck: 0, hpMax: 5, hpCurrent: 5 },
+    attribution: "dps" as const,
+    trait: "brute" as const,
+  };
+  const veteranWeak = {
+    id: "veteran-weak",
+    name: "veteran-weak",
+    stats: { atk: 1, def: 1, luck: 0, hpMax: 170, hpCurrent: 170 },
     attribution: "dps" as const,
     trait: "brute" as const,
   };
@@ -249,33 +282,508 @@ describe("resolveCombat - permadeath is Hard-only", () => {
     trait: "brute" as const,
   };
 
-  it("never lets a knocked-down gladiator die on Easy or Normal", () => {
+  it("never lets a knocked-down gladiator die on Easy or Normal, veteran or not", () => {
     for (const difficulty of ["easy", "normal"] as const) {
-      const rng = mulberry32(99);
-      for (let i = 0; i < 100; i++) {
-        const result = resolveCombat(
-          computeCombatUnits([weak]),
-          computeCombatUnits([strong]),
-          { difficulty, rng },
-        );
-        expect(result.victory).toBe(false);
-        expect(result.trainerUnits[0].hpCurrent).toBe(COMBAT_HP_FLOOR);
+      for (const weak of [rookieWeak, veteranWeak]) {
+        const rng = mulberry32(99);
+        for (let i = 0; i < 100; i++) {
+          const result = resolveCombat(
+            computeCombatUnits([weak]),
+            computeCombatUnits([strong]),
+            { difficulty, rng },
+          );
+          expect(result.victory).toBe(false);
+          expect(result.trainerUnits[0].hpCurrent).toBe(COMBAT_HP_FLOOR);
+        }
       }
     }
   });
 
-  it("can let a knocked-down gladiator die on Hard", () => {
+  it("never lets a rookie die, even on Hard", () => {
+    const rng = mulberry32(99);
+    for (let i = 0; i < 200; i++) {
+      const result = resolveCombat(
+        computeCombatUnits([rookieWeak]),
+        computeCombatUnits([strong]),
+        { difficulty: "hard", rng },
+      );
+      expect(result.trainerUnits[0].hpCurrent).toBe(COMBAT_HP_FLOOR);
+    }
+  });
+
+  it("can let a knocked-down veteran die on Hard", () => {
     const rng = mulberry32(99);
     const outcomes = new Set<number>();
     for (let i = 0; i < 200; i++) {
       const result = resolveCombat(
-        computeCombatUnits([weak]),
+        computeCombatUnits([veteranWeak]),
         computeCombatUnits([strong]),
         { difficulty: "hard", rng },
       );
       outcomes.add(result.trainerUnits[0].hpCurrent);
     }
     expect(outcomes).toEqual(new Set([0, COMBAT_HP_FLOOR]));
+  });
+});
+
+describe("computeActiveDuoSynergies (ROADMAP.md Axe B)", () => {
+  const tag = (trait: GladiatorTrait, attribution: Attribution) => ({
+    trait,
+    attribution,
+  });
+
+  it("detects Bodyguard only with a Stoic Tank and a Bloodthirsty DPS", () => {
+    const active = computeActiveDuoSynergies([
+      tag("stoic", "tank"),
+      tag("bloodthirsty", "dps"),
+    ]);
+    expect(active.map((s) => s.id)).toContain("bodyguard");
+  });
+
+  it("does not detect Bodyguard if the roles don't match", () => {
+    const active = computeActiveDuoSynergies([
+      tag("stoic", "dps"),
+      tag("bloodthirsty", "tank"),
+    ]);
+    expect(active.map((s) => s.id)).not.toContain("bodyguard");
+  });
+
+  it("detects Lucky Aegis only with a Lucky Tank and a Lucky Support", () => {
+    const active = computeActiveDuoSynergies([
+      tag("lucky", "tank"),
+      tag("lucky", "support"),
+    ]);
+    expect(active.map((s) => s.id)).toContain("lucky-aegis");
+  });
+
+  it("does not detect Lucky Aegis if the Tank isn't also Lucky", () => {
+    const active = computeActiveDuoSynergies([
+      tag("brute", "tank"),
+      tag("lucky", "support"),
+    ]);
+    expect(active.map((s) => s.id)).not.toContain("lucky-aegis");
+  });
+
+  it("detects Twin Frenzy only with two Bloodthirsty DPS", () => {
+    const oneOnly = computeActiveDuoSynergies([
+      tag("bloodthirsty", "dps"),
+      tag("brute", "dps"),
+    ]);
+    expect(oneOnly.map((s) => s.id)).not.toContain("twin-frenzy");
+
+    const two = computeActiveDuoSynergies([
+      tag("bloodthirsty", "dps"),
+      tag("bloodthirsty", "dps"),
+    ]);
+    expect(two.map((s) => s.id)).toContain("twin-frenzy");
+  });
+
+  it("detects Shield Wall only with a Brute Tank and a Brute Support", () => {
+    const active = computeActiveDuoSynergies([
+      tag("brute", "tank"),
+      tag("brute", "support"),
+    ]);
+    expect(active.map((s) => s.id)).toContain("rampart");
+  });
+
+  it("does not detect Shield Wall if only one of the two is Brute", () => {
+    const active = computeActiveDuoSynergies([
+      tag("brute", "tank"),
+      tag("stoic", "support"),
+    ]);
+    expect(active.map((s) => s.id)).not.toContain("rampart");
+  });
+
+  it("detects Rowdy Crowd only with a Crowd Favorite Support and a Lucky DPS", () => {
+    const active = computeActiveDuoSynergies([
+      tag("crowdFavorite", "support"),
+      tag("lucky", "dps"),
+    ]);
+    expect(active.map((s) => s.id)).toContain("crowd-lucky");
+  });
+
+  it("does not detect Rowdy Crowd if the roles are swapped", () => {
+    const active = computeActiveDuoSynergies([
+      tag("crowdFavorite", "dps"),
+      tag("lucky", "support"),
+    ]);
+    expect(active.map((s) => s.id)).not.toContain("crowd-lucky");
+  });
+
+  it("detects Reckless Duo only with an Incorrigible Support and a Brute Tank", () => {
+    const active = computeActiveDuoSynergies([
+      tag("incorrigible", "support"),
+      tag("brute", "tank"),
+    ]);
+    expect(active.map((s) => s.id)).toContain("reckless-duo");
+  });
+
+  it("does not detect Reckless Duo if the Tank isn't Brute", () => {
+    const active = computeActiveDuoSynergies([
+      tag("incorrigible", "support"),
+      tag("stoic", "tank"),
+    ]);
+    expect(active.map((s) => s.id)).not.toContain("reckless-duo");
+  });
+
+  it("detects Glass Cannon only with a Crowd Favorite Tank and an Incorrigible DPS", () => {
+    const active = computeActiveDuoSynergies([
+      tag("crowdFavorite", "tank"),
+      tag("incorrigible", "dps"),
+    ]);
+    expect(active.map((s) => s.id)).toContain("glass-cannon");
+  });
+
+  it("does not detect Glass Cannon if the roles are swapped", () => {
+    const active = computeActiveDuoSynergies([
+      tag("crowdFavorite", "dps"),
+      tag("incorrigible", "tank"),
+    ]);
+    expect(active.map((s) => s.id)).not.toContain("glass-cannon");
+  });
+
+  it("stays empty for a team with none of the curated combos", () => {
+    const active = computeActiveDuoSynergies([
+      tag("brute", "dps"),
+      tag("stoic", "dps"),
+    ]);
+    expect(active).toEqual([]);
+  });
+
+  it("gives every active synergy a non-empty, on-topic description", () => {
+    // A badge is never just a name - readability regression guard (see
+    // ROADMAP.md Axe B and DuoSynergyBadges.vue).
+    const active = computeActiveDuoSynergies([
+      tag("stoic", "tank"),
+      tag("bloodthirsty", "dps"),
+      tag("lucky", "tank"),
+      tag("lucky", "support"),
+    ]);
+    expect(active.length).toBeGreaterThan(0);
+    for (const synergy of active) {
+      expect(synergy.description.length).toBeGreaterThan(0);
+    }
+    const bodyguard = active.find((s) => s.id === "bodyguard");
+    expect(bodyguard?.description).toContain(
+      `${DUO_BODYGUARD_ATK_BONUS_PERCENT}%`,
+    );
+    const luckyAegis = active.find((s) => s.id === "lucky-aegis");
+    expect(luckyAegis?.description).toContain(
+      `${DUO_LUCKY_AEGIS_LUCK_SHARE_PERCENT}%`,
+    );
+  });
+});
+
+describe("DUO_SYNERGIES catalog (illustration data)", () => {
+  const tag = (trait: GladiatorTrait, attribution: Attribution) => ({
+    trait,
+    attribution,
+  });
+
+  it("has exactly 2 slots per synergy, matching computeActiveDuoSynergies' own ids", () => {
+    const idsFromDetection = new Set(
+      computeActiveDuoSynergies([
+        tag("stoic", "tank"),
+        tag("bloodthirsty", "dps"),
+        tag("lucky", "support"),
+        tag("crowdFavorite", "dps"),
+      ]).map((s) => s.id),
+    );
+    for (const synergy of DUO_SYNERGIES) {
+      expect(synergy.slots).toHaveLength(2);
+    }
+    // Every id this scenario activates via detection must also exist as a
+    // catalog entry (single source of truth - no id drift between the two).
+    const catalogIds = new Set(DUO_SYNERGIES.map((s) => s.id));
+    for (const id of idsFromDetection) {
+      expect(catalogIds.has(id)).toBe(true);
+    }
+  });
+});
+
+describe("tagMatchesSlot", () => {
+  const tag = (trait: GladiatorTrait, attribution: Attribution) => ({
+    trait,
+    attribution,
+  });
+
+  it("matches an exact (trait, role) slot only on both fields", () => {
+    const slot = { trait: "stoic" as const, attribution: "tank" as const };
+    expect(tagMatchesSlot(tag("stoic", "tank"), slot)).toBe(true);
+    expect(tagMatchesSlot(tag("stoic", "dps"), slot)).toBe(false);
+    expect(tagMatchesSlot(tag("bloodthirsty", "tank"), slot)).toBe(false);
+  });
+});
+
+describe("computeCombatUnits applies duo synergy stat bonuses", () => {
+  const stats = { atk: 50, def: 50, luck: 50, hpMax: 100, hpCurrent: 100 };
+
+  it("boosts the Bloodthirsty DPS's ATK when paired with a Stoic Tank (Bodyguard)", () => {
+    const withoutDuo = computeCombatUnits([
+      {
+        id: "dps",
+        name: "dps",
+        stats,
+        attribution: "dps",
+        trait: "bloodthirsty",
+      },
+      { id: "tank", name: "tank", stats, attribution: "tank", trait: "brute" },
+    ]);
+    const withDuo = computeCombatUnits([
+      {
+        id: "dps",
+        name: "dps",
+        stats,
+        attribution: "dps",
+        trait: "bloodthirsty",
+      },
+      { id: "tank", name: "tank", stats, attribution: "tank", trait: "stoic" },
+    ]);
+    const dpsWithout = withoutDuo.find((u) => u.id === "dps")!;
+    const dpsWith = withDuo.find((u) => u.id === "dps")!;
+    expect(dpsWith.atk).toBeCloseTo(
+      dpsWithout.atk * (1 + DUO_BODYGUARD_ATK_BONUS_PERCENT / 100),
+    );
+  });
+
+  it("shares Luck from a Lucky Support to a Lucky Tank (Lucky Aegis)", () => {
+    const units = computeCombatUnits([
+      {
+        id: "support",
+        name: "support",
+        stats,
+        attribution: "support",
+        trait: "lucky",
+      },
+      { id: "tank", name: "tank", stats, attribution: "tank", trait: "lucky" },
+    ]);
+    const tank = units.find((u) => u.id === "tank")!;
+    const support = units.find((u) => u.id === "support")!;
+    // Tank's Luck under the "tank" role is stats.luck * 0.9 (applyAttribution)
+    // before the duo bonus is added on top.
+    const baseTankLuck = stats.luck * 0.9;
+    expect(tank.luck).toBeCloseTo(
+      baseTankLuck + (support.luck * DUO_LUCKY_AEGIS_LUCK_SHARE_PERCENT) / 100,
+    );
+  });
+
+  it("boosts Defense for a Brute Tank and Brute Support only (Shield Wall)", () => {
+    const withDuo = computeCombatUnits([
+      { id: "tank", name: "tank", stats, attribution: "tank", trait: "brute" },
+      {
+        id: "support",
+        name: "support",
+        stats,
+        attribution: "support",
+        trait: "brute",
+      },
+      { id: "dps", name: "dps", stats, attribution: "dps", trait: "lucky" },
+    ]);
+    const withoutDuo = computeCombatUnits([
+      { id: "tank", name: "tank", stats, attribution: "tank", trait: "stoic" },
+      {
+        id: "support",
+        name: "support",
+        stats,
+        attribution: "support",
+        trait: "brute",
+      },
+      { id: "dps", name: "dps", stats, attribution: "dps", trait: "lucky" },
+    ]);
+    const tankWith = withDuo.find((u) => u.id === "tank")!;
+    const tankWithout = withoutDuo.find((u) => u.id === "tank")!;
+    expect(tankWith.def).toBeCloseTo(
+      tankWithout.def * (1 + DUO_RAMPART_DEF_BONUS_PERCENT / 100),
+    );
+
+    // A gladiator not part of the duo (same Support count either way, so the
+    // baseline applySupportTeamBuff contribution is identical) stays
+    // unaffected - Shield Wall no longer buffs the whole squad.
+    const dpsWith = withDuo.find((u) => u.id === "dps")!;
+    const dpsWithout = withoutDuo.find((u) => u.id === "dps")!;
+    expect(dpsWith.def).toBeCloseTo(dpsWithout.def);
+  });
+
+  it("boosts both Bloodthirsty DPS units under Twin Frenzy", () => {
+    const solo = computeCombatUnits([
+      { id: "a", name: "a", stats, attribution: "dps", trait: "bloodthirsty" },
+      { id: "b", name: "b", stats, attribution: "tank", trait: "brute" },
+    ]);
+    const duo = computeCombatUnits([
+      { id: "a", name: "a", stats, attribution: "dps", trait: "bloodthirsty" },
+      { id: "b", name: "b", stats, attribution: "dps", trait: "bloodthirsty" },
+    ]);
+    const soloAtk = solo.find((u) => u.id === "a")!.atk;
+    const duoAtk = duo.find((u) => u.id === "a")!.atk;
+    expect(duoAtk).toBeCloseTo(
+      soloAtk * (1 + DUO_TWIN_FRENZY_ATK_BONUS_PERCENT / 100),
+    );
+  });
+
+  it("boosts the Brute Tank's ATK when paired with an Incorrigible Support (Reckless Duo)", () => {
+    const withoutDuo = computeCombatUnits([
+      { id: "tank", name: "tank", stats, attribution: "tank", trait: "brute" },
+      {
+        id: "support",
+        name: "support",
+        stats,
+        attribution: "support",
+        trait: "stoic",
+      },
+    ]);
+    const withDuo = computeCombatUnits([
+      { id: "tank", name: "tank", stats, attribution: "tank", trait: "brute" },
+      {
+        id: "support",
+        name: "support",
+        stats,
+        attribution: "support",
+        trait: "incorrigible",
+      },
+    ]);
+    const tankWithout = withoutDuo.find((u) => u.id === "tank")!;
+    const tankWith = withDuo.find((u) => u.id === "tank")!;
+    expect(tankWith.atk).toBeCloseTo(
+      tankWithout.atk * (1 + DUO_RECKLESS_DUO_ATK_BONUS_PERCENT / 100),
+    );
+  });
+
+  it("boosts the Incorrigible DPS's Luck when paired with a Crowd Favorite Tank (Glass Cannon)", () => {
+    const withoutDuo = computeCombatUnits([
+      {
+        id: "dps",
+        name: "dps",
+        stats,
+        attribution: "dps",
+        trait: "incorrigible",
+      },
+      { id: "tank", name: "tank", stats, attribution: "tank", trait: "stoic" },
+    ]);
+    const withDuo = computeCombatUnits([
+      {
+        id: "dps",
+        name: "dps",
+        stats,
+        attribution: "dps",
+        trait: "incorrigible",
+      },
+      {
+        id: "tank",
+        name: "tank",
+        stats,
+        attribution: "tank",
+        trait: "crowdFavorite",
+      },
+    ]);
+    const dpsWithout = withoutDuo.find((u) => u.id === "dps")!;
+    const dpsWith = withDuo.find((u) => u.id === "dps")!;
+    expect(dpsWith.luck).toBeCloseTo(
+      dpsWithout.luck * (1 + DUO_GLASS_CANNON_LUCK_BONUS_PERCENT / 100),
+    );
+  });
+});
+
+describe("resolveCombat - duo synergy gold and Bloodthirsty visibility", () => {
+  it("adds the Rowdy Crowd bonus gold on a win when Crowd Favorite + Lucky are both sent", () => {
+    const strongStats = {
+      atk: 200,
+      def: 50,
+      luck: 50,
+      hpMax: 500,
+      hpCurrent: 500,
+    };
+    const weakRivalStats = { atk: 1, def: 1, luck: 0, hpMax: 5, hpCurrent: 5 };
+    const trainer = computeCombatUnits([
+      {
+        id: "a",
+        name: "a",
+        stats: strongStats,
+        attribution: "support",
+        trait: "crowdFavorite",
+      },
+      {
+        id: "b",
+        name: "b",
+        stats: strongStats,
+        attribution: "dps",
+        trait: "lucky",
+      },
+    ]);
+    const rival = computeCombatUnits([
+      {
+        id: "r",
+        name: "r",
+        stats: weakRivalStats,
+        attribution: "dps",
+        trait: "brute",
+      },
+    ]);
+    const rng = mulberry32(42);
+    const result = resolveCombat(trainer, rival, { difficulty: "easy", rng });
+
+    expect(result.victory).toBe(true);
+    expect(result.activeDuoSynergies.map((s) => s.id)).toContain("crowd-lucky");
+    const expectedBonus = Math.round(
+      (result.baseGoldReward * DUO_CROWD_LUCKY_GOLD_BONUS_PERCENT) / 100,
+    );
+    expect(result.duoSynergyBonusGold).toBe(expectedBonus);
+    expect(result.goldGained).toBe(
+      result.baseGoldReward +
+        result.crowdFavoriteBonusGold +
+        result.duoSynergyBonusGold,
+    );
+  });
+
+  it("logs bloodthirstyTriggered only on the knockdown hit from a Bloodthirsty attacker", () => {
+    const strong = computeCombatUnits([
+      {
+        id: "strong",
+        name: "strong",
+        stats: { atk: 200, def: 50, luck: 0, hpMax: 500, hpCurrent: 500 },
+        attribution: "dps",
+        trait: "bloodthirsty",
+      },
+    ]);
+    const weak = computeCombatUnits([
+      {
+        id: "weak",
+        name: "weak",
+        stats: { atk: 1, def: 1, luck: 0, hpMax: 5, hpCurrent: 5 },
+        attribution: "dps",
+        trait: "brute",
+      },
+    ]);
+    const rng = mulberry32(7);
+    const result = resolveCombat(strong, weak, { difficulty: "easy", rng });
+
+    const knockdownEntry = result.log.find((e) => e.targetDowned);
+    expect(knockdownEntry?.bloodthirstyTriggered).toBe(true);
+    expect(
+      result.log.every(
+        (e) => !e.bloodthirstyTriggered || e.attackerId === "strong",
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("trainingProgramUpgradeGoldCost", () => {
+  it("applies the Incorrigible self-discount", () => {
+    const cost = trainingProgramUpgradeGoldCost("incorrigible");
+    expect(cost).toBe(
+      Math.round(
+        TRAINING_PROGRAM_UPGRADE_GOLD_COST *
+          (1 - TRAIT_INCORRIGIBLE_TRAINING_COST_DISCOUNT_PERCENT / 100),
+      ),
+    );
+  });
+
+  it("is unchanged for any other trait", () => {
+    expect(trainingProgramUpgradeGoldCost("brute")).toBe(
+      TRAINING_PROGRAM_UPGRADE_GOLD_COST,
+    );
+    expect(trainingProgramUpgradeGoldCost(undefined)).toBe(
+      TRAINING_PROGRAM_UPGRADE_GOLD_COST,
+    );
   });
 });
 
