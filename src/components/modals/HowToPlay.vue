@@ -7,7 +7,9 @@
       send them into the arena to bleed for your name.
     </p>
 
-    <h4 class="section-title"><i class="bi bi-houses-fill" /> The Camp</h4>
+    <h4 class="section-title">
+      <i class="bi bi-houses-fill" /> The Camp
+    </h4>
     <div class="row g-3 mb-2">
       <div class="col-sm-6 col-lg-4">
         <div class="card bg-dark text-light h-100 building-card">
@@ -95,9 +97,11 @@
       <div class="col-sm-4">
         <div class="card bg-dark text-light h-100 border-warning">
           <div class="card-body">
-            <h6 class="card-title"><i class="bi bi-fire" /> Brute</h6>
+            <h6 class="card-title">
+              <i class="bi bi-fire" /> Brute
+            </h6>
             <p class="card-text small mb-0 text-muted">
-              +10% extra Attack training effectiveness at the Training Program.
+              +20% extra Attack training effectiveness at the Training Program.
             </p>
           </div>
         </div>
@@ -105,7 +109,9 @@
       <div class="col-sm-4">
         <div class="card bg-dark text-light h-100 border-info">
           <div class="card-body">
-            <h6 class="card-title"><i class="bi bi-heart-fill" /> Stoic</h6>
+            <h6 class="card-title">
+              <i class="bi bi-heart-fill" /> Stoic
+            </h6>
             <p class="card-text small mb-0 text-muted">
               Sometimes stays standing on a hit that would otherwise knock them
               down.
@@ -116,7 +122,9 @@
       <div class="col-sm-4">
         <div class="card bg-dark text-light h-100 border-success">
           <div class="card-body">
-            <h6 class="card-title"><i class="bi bi-stars" /> Lucky</h6>
+            <h6 class="card-title">
+              <i class="bi bi-stars" /> Lucky
+            </h6>
             <p class="card-text small mb-0 text-muted">
               Gains +2 Luck (instead of +1) on every victory.
             </p>
@@ -137,7 +145,7 @@
         </div>
       </div>
       <div class="col-sm-4">
-        <div class="card bg-dark text-light h-100 border-primary">
+        <div class="card bg-dark text-light h-100 border-bronze">
           <div class="card-body">
             <h6 class="card-title">
               <i class="bi bi-hand-thumbs-up-fill" /> Crowd Favorite
@@ -183,7 +191,9 @@
       </div>
     </div>
 
-    <h4 class="section-title"><i class="bi bi-shield-fill" /> Combat</h4>
+    <h4 class="section-title">
+      <i class="bi bi-shield-fill" /> Combat
+    </h4>
     <p class="small text-muted">
       Before each fight, 4 gladiators are drawn at random from everyone who
       isn't resting - there's no roster to hand-pick, only who you've chosen to
@@ -205,7 +215,9 @@
       <div class="col-sm-4">
         <div class="card bg-dark text-light h-100 border-info">
           <div class="card-body">
-            <h6 class="card-title"><i class="bi bi-shield-fill" /> Tank</h6>
+            <h6 class="card-title">
+              <i class="bi bi-shield-fill" /> Tank
+            </h6>
             <p class="card-text small mb-0 text-muted">
               -10% Attack, -10% Luck, +20% Defense.
             </p>
@@ -215,8 +227,12 @@
       <div class="col-sm-4">
         <div class="card bg-dark text-light h-100 border-secondary">
           <div class="card-body">
-            <h6 class="card-title"><i class="bi bi-people-fill" /> Support</h6>
-            <p class="card-text small mb-0 text-muted">No change.</p>
+            <h6 class="card-title">
+              <i class="bi bi-people-fill" /> Support
+            </h6>
+            <p class="card-text small mb-0 text-muted">
+              No change.
+            </p>
           </div>
         </div>
       </div>
@@ -241,8 +257,9 @@
                 gladiators).
               </li>
               <li>
-                Any sent gladiator that was knocked down and then finished off
-                during the fight doesn't come back, even in a winning fight.
+                On Hard only, a sent gladiator that was knocked down can be
+                finished off and not come back, even in a winning fight - Easy
+                and Normal never take a gladiator from you.
               </li>
             </ul>
           </div>
@@ -258,8 +275,8 @@
               <li>No gold, no permanent stat gain this time.</li>
               <li>
                 Your gladiators come back exactly as they fought, possibly
-                knocked down and injured - unless one was knocked down and then
-                finished off, it isn't removed from your camp.
+                knocked down and injured - only a Hard fight risks losing one
+                for good if it was knocked down and finished off.
               </li>
               <li>Your wager is forfeited.</li>
             </ul>
@@ -271,20 +288,3 @@
 </template>
 
 <script setup lang="ts"></script>
-
-<style scoped>
-.section-title {
-  color: var(--gladiator-gold-bright, #e0b64d);
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
-}
-.section-title:first-of-type {
-  margin-top: 0;
-}
-.building-card {
-  transition: border-color 0.15s ease;
-}
-.building-card:hover {
-  border-color: var(--gladiator-gold, #c9972c);
-}
-</style>

@@ -20,8 +20,8 @@
           class="btn btn-outline-primary"
           :disabled="
             gold < recruitCost ||
-            gladiatorCount >= capacity ||
-            tradesLeftThisHour <= 0
+              gladiatorCount >= capacity ||
+              tradesLeftThisHour <= 0
           "
           @click="recruit"
         >
@@ -32,7 +32,10 @@
       <div class="row g-2 align-items-end mb-2">
         <div class="col-auto">
           <label class="form-label">Sell a gladiator</label>
-          <select v-model="selectedGladiatorId" class="form-select">
+          <select
+            v-model="selectedGladiatorId"
+            class="form-select"
+          >
             <option
               v-for="gladiator in sellableGladiators"
               :key="gladiator.id"
@@ -52,7 +55,10 @@
           </button>
         </div>
       </div>
-      <BuildingLevelsTable :current-level="level" :rows="levelRows" />
+      <BuildingLevelsTable
+        :current-level="level"
+        :rows="levelRows"
+      />
       <button
         v-if="!isMaxLevel"
         class="btn btn-outline-light"
@@ -66,7 +72,10 @@
       >
         Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
       </button>
-      <span v-else class="badge bg-success">Max level</span>
+      <span
+        v-else
+        class="badge bg-success"
+      >Max level</span>
     </div>
   </div>
 </template>

@@ -1,6 +1,13 @@
 <template>
-  <div class="modal fade show d-block" tabindex="-1" @click="closeOnBackdrop">
-    <div class="modal-dialog modal-fullscreen" @click.stop>
+  <div
+    class="modal fade show d-block"
+    tabindex="-1"
+    @click="closeOnBackdrop"
+  >
+    <div
+      class="modal-dialog modal-fullscreen"
+      @click.stop
+    >
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">
@@ -29,73 +36,20 @@
                   :key="gladiator.id"
                   class="col-md-6 mb-3"
                 >
-                  <div
-                    class="card bg-dark text-light"
-                    :class="roleBorderClass(placement[gladiator.id])"
-                  >
-                    <div class="card-body">
-                      <h6>
-                        {{ gladiator.name }}
-                        <span
-                          class="badge"
-                          :class="traitBadgeClass(gladiator.trait)"
-                        >
-                          <i :class="traitIcon(gladiator.trait)" />
-                          {{ traitLabel(gladiator.trait) }}
-                        </span>
-                      </h6>
-                      <p v-if="placement[gladiator.id]" class="mb-2">
-                        <i :class="roleIcon(placement[gladiator.id])" />
-                        {{ roleLabel(placement[gladiator.id]) }} <br />
-                        ATK {{ Math.round(displayedStats(gladiator).atk) }} -
-                        DEF {{ Math.round(displayedStats(gladiator).def) }} -
-                        LUCK
-                        {{ Math.round(displayedStats(gladiator).luck) }}
-                      </p>
-                      <p v-else class="text-muted mb-2">
-                        Pick a role to see modified stats.
-                      </p>
-                      <div class="btn-group w-100">
-                        <button
-                          class="btn btn-sm"
-                          :class="
-                            placement[gladiator.id] === 'dps'
-                              ? 'btn-primary'
-                              : 'btn-outline-primary'
-                          "
-                          @click="setPlacement(gladiator.id, 'dps')"
-                        >
-                          <i class="bi bi-lightning-charge-fill" /> DPS
-                        </button>
-                        <button
-                          class="btn btn-sm"
-                          :class="
-                            placement[gladiator.id] === 'tank'
-                              ? 'btn-info'
-                              : 'btn-outline-info'
-                          "
-                          @click="setPlacement(gladiator.id, 'tank')"
-                        >
-                          <i class="bi bi-shield-fill" /> Tank
-                        </button>
-                        <button
-                          class="btn btn-sm"
-                          :class="
-                            placement[gladiator.id] === 'support'
-                              ? 'btn-secondary'
-                              : 'btn-outline-secondary'
-                          "
-                          @click="setPlacement(gladiator.id, 'support')"
-                        >
-                          <i class="bi bi-people-fill" /> Support
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <GladiatorPlacementCard
+                    :gladiator="gladiator"
+                    :role="placement[gladiator.id]"
+                    @select-role="
+                      (role: Attribution) => setPlacement(gladiator.id, role)
+                    "
+                  />
                 </div>
               </div>
               <div class="text-center">
-                <label for="betInput" class="form-label">
+                <label
+                  for="betInput"
+                  class="form-label"
+                >
                   Gold wager - win to double it back (max {{ maxBet }})
                 </label>
                 <div
@@ -110,10 +64,8 @@
                     min="0"
                     :max="Math.min(gold, maxBet)"
                     @change="clampBet"
-                  />
-                  <span class="input-group-text"
-                    >/ {{ Math.min(gold, maxBet) }} gold</span
                   >
+                  <span class="input-group-text">/ {{ Math.min(gold, maxBet) }} gold</span>
                 </div>
                 <button
                   class="btn btn-danger btn-lg"
@@ -122,7 +74,10 @@
                 >
                   <i class="bi bi-lightning-fill" /> Engage
                 </button>
-                <p v-if="!placementValid" class="text-muted mt-2">
+                <p
+                  v-if="!placementValid"
+                  class="text-muted mt-2"
+                >
                   {{ placementHint }}
                 </p>
               </div>
@@ -130,13 +85,18 @@
           </div>
 
           <!-- Step 2: battlefield + result -->
-          <div v-else-if="result" class="container-fluid">
+          <div
+            v-else-if="result"
+            class="container-fluid"
+          >
             <p class="text-center text-muted mb-2">
               Round {{ currentRound }} / {{ MAX_COMBAT_ROUNDS }}
             </p>
             <div class="row justify-content-center align-items-start g-4">
               <div class="col-auto">
-                <h6 class="text-center text-primary">Your Team</h6>
+                <h6 class="text-center text-primary">
+                  Your Team
+                </h6>
                 <div class="d-flex flex-wrap gap-2 justify-content-center">
                   <CombatCard
                     v-for="unit in combatTrainerUnits"
@@ -160,12 +120,17 @@
                 class="col-auto d-flex flex-column align-items-center justify-content-center"
               >
                 <span class="display-6 text-muted d-none d-md-inline">VS</span>
-                <span class="badge mt-1" :class="difficultyBadgeClass">
+                <span
+                  class="badge mt-1"
+                  :class="difficultyBadgeClass"
+                >
                   <i class="bi bi-bar-chart-fill" /> {{ difficultyLabel }}
                 </span>
               </div>
               <div class="col-auto">
-                <h6 class="text-center text-danger">Rival Team</h6>
+                <h6 class="text-center text-danger">
+                  Rival Team
+                </h6>
                 <div class="d-flex flex-wrap gap-2 justify-content-center">
                   <CombatCard
                     v-for="unit in combatRivalUnits"
@@ -240,7 +205,10 @@
                         Total: +{{ totalGoldGained }} gold
                       </li>
                     </ul>
-                    <p v-else-if="lastBet > 0" class="mb-0 text-danger">
+                    <p
+                      v-else-if="lastBet > 0"
+                      class="mb-0 text-danger"
+                    >
                       <i class="bi bi-coin" /> Wager lost: -{{ lastBet }} gold
                     </p>
                     <p
@@ -252,8 +220,13 @@
                     </p>
                   </div>
                 </div>
-                <div v-if="displayedLog.length > 0" class="text-start mb-3">
-                  <h6 class="text-center">Combat log</h6>
+                <div
+                  v-if="displayedLog.length > 0"
+                  class="text-start mb-3"
+                >
+                  <h6 class="text-center">
+                    Combat log
+                  </h6>
                   <ul
                     class="list-group"
                     style="max-height: 220px; overflow-y: auto"
@@ -280,22 +253,22 @@
                         <template v-else>
                           hits {{ entry.targetName }} for
                           {{ Math.round(entry.damage) }} dmg
-                          <span v-if="entry.crit" class="text-warning"
-                            >(crit!)</span
+                          <span
+                            v-if="entry.crit"
+                            class="text-warning"
+                          >(crit!)</span>
+                          <span
+                            v-if="entry.survivedLethal"
+                            class="text-info"
                           >
-                          <span v-if="entry.survivedLethal" class="text-info">
-                            - clings on!</span
-                          >
+                            - clings on!</span>
                           <span
                             v-else-if="entry.targetDowned"
                             class="text-danger"
-                            >- knocked down</span
-                          >
+                          >- knocked down</span>
                         </template>
                       </span>
-                      <span class="text-muted"
-                        >HP left: {{ Math.round(entry.targetHpAfter) }}</span
-                      >
+                      <span class="text-muted">HP left: {{ Math.round(entry.targetHpAfter) }}</span>
                     </li>
                   </ul>
                 </div>
@@ -335,7 +308,6 @@ import {
   computeRivalBudget,
   distributeRivalBudget,
   resolveCombat,
-  applyAttribution,
   applyExperienceGain,
   getTrainingPoints,
   isValidTeamComposition,
@@ -347,12 +319,8 @@ import {
   arenaMaxBet,
 } from "@/core/game/gameRules";
 import type { CombatResult, CombatLogEntry } from "@/core/game/types";
-import {
-  traitLabel,
-  traitIcon,
-  traitBadgeClass,
-} from "@/core/game/traitPresentation";
-import CombatCard from "@/components/CombatCard.vue";
+import CombatCard from "@/components/subComponents/CombatCard.vue";
+import GladiatorPlacementCard from "@/components/subComponents/GladiatorPlacementCard.vue";
 
 const emit = defineEmits<{ close: [] }>();
 
@@ -361,19 +329,6 @@ const closeOnBackdrop = (event: Event) => {
 };
 
 const { userData, gold, updateUserData } = useGameStore();
-
-const roleIcon = (line: Attribution | null) => {
-  if (line === "dps") return "bi bi-lightning-charge-fill";
-  if (line === "tank") return "bi bi-shield-fill";
-  return "bi bi-people-fill";
-};
-
-const roleBorderClass = (line: Attribution | null) => {
-  if (line === "dps") return "border-primary";
-  if (line === "tank") return "border-info";
-  if (line === "support") return "border-secondary";
-  return "";
-};
 
 const sentGladiators = ref<Gladiator[] | null>(null);
 const placement = ref<Record<string, Attribution | null>>({});
@@ -589,17 +544,6 @@ const clampBet = () => {
   persistPendingCombat();
 };
 
-const displayedStats = (gladiator: Gladiator) => {
-  const line = placement.value[gladiator.id];
-  return line ? applyAttribution(gladiator.stats, line) : gladiator.stats;
-};
-
-const roleLabel = (line: Attribution | null) => {
-  if (line === "dps") return "DPS";
-  if (line === "tank") return "Tank";
-  return "Support";
-};
-
 const placementValid = computed(() => {
   if (!sentGladiators.value || sentGladiators.value.length === 0) return false;
   const allAssigned = sentGladiators.value.every(
@@ -636,7 +580,7 @@ const engage = () => {
     id: gladiator.id,
     name: gladiator.name,
     stats: gladiator.stats,
-    line: placement.value[gladiator.id] as Attribution,
+    attribution: placement.value[gladiator.id] as Attribution,
     trait: gladiator.trait,
   }));
   const trainerUnits = computeCombatUnits(placedGladiators);
@@ -667,8 +611,10 @@ const engage = () => {
   });
 
   // PvE sparring: a gladiator only dies if its final HP is 0 once
-  // resolveDownedFates has run - see gameRules.ts's resolveCombat. Only a
-  // win grants the permanent stat bump and training point (applyExperienceGain).
+  // resolveDownedFates has run - see gameRules.ts's resolveCombat. Easy and
+  // Normal never roll a death (permadeath is Hard-only for now, PvP later),
+  // so this only ever removes someone on a Hard fight. Only a win grants the
+  // permanent stat bump and training point (applyExperienceGain).
   const finalHpByGladiatorId = new Map(
     combatResult.trainerUnits.map((u) => [u.id, u]),
   );

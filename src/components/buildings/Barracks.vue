@@ -5,9 +5,7 @@
     >
       <span><i class="bi bi-shield-fill" /> Barracks</span>
       <div class="d-flex gap-2 flex-wrap">
-        <span class="badge bg-secondary"
-          >{{ gladiatorCount }}/{{ capacity }} gladiators</span
-        >
+        <span class="badge bg-secondary">{{ gladiatorCount }}/{{ capacity }} gladiators</span>
         <span
           class="badge"
           :class="
@@ -21,115 +19,32 @@
       </div>
     </div>
     <div class="card-body">
-      <p v-if="gladiators.length === 0" class="text-muted m-2">
+      <p
+        v-if="gladiators.length === 0"
+        class="text-muted m-2"
+      >
         No gladiators yet - recruit some at the Market.
       </p>
-      <ul v-else class="list-group m-2">
-        <li
+      <div
+        v-else
+        class="gladiator-grid m-2"
+      >
+        <GladiatorCard
           v-for="gladiator in rankedGladiators"
           :key="gladiator.id"
-          class="list-group-item bg-dark text-light"
-          :class="{ 'border-start border-1 border-warning': gladiator.resting }"
-        >
-          <div
-            class="d-flex justify-content-between align-items-center gap-2 flex-wrap"
-          >
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-              <input
-                :value="gladiator.name"
-                class="form-control form-control-sm bg-dark text-light gladiator-name-input"
-                @change="renameGladiator(gladiator.id, $event)"
-              />
-              <button
-                class="btn btn-sm btn-outline-light"
-                title="Show gladiator details"
-                @click="toggleDetails(gladiator.id)"
-              >
-                <i class="bi bi-info-circle" />
-              </button>
-              <span
-                class="badge"
-                :class="traitBadgeClass(gladiator.trait)"
-                :title="traitDescription(gladiator.trait)"
-              >
-                <i :class="traitIcon(gladiator.trait)" />
-                {{ traitLabel(gladiator.trait) }}
-              </span>
-              <span v-if="gladiator.resting" class="badge bg-warning text-dark">
-                <i class="bi bi-moon-stars-fill" /> Resting
-              </span>
-            </div>
-            <span class="badge" :class="powerBadgeClass(gladiator.power)">
-              {{ powerTierLabel(gladiator.power) }} - {{ gladiator.power }}
-              <br />
-              <i class="bi bi-award" /> {{ gladiator.battlesFought }}
-            </span>
-          </div>
-          <span class="ms-1 text-muted small">
-            ATK {{ Math.round(gladiator.stats.atk) }} - DEF
-            {{ Math.round(gladiator.stats.def) }} - LUCK
-            {{ Math.round(gladiator.stats.luck) }} - HP
-            {{ Math.round(gladiator.stats.hpCurrent) }}/{{
-              Math.round(gladiator.stats.hpMax)
-            }}
-          </span>
-
-          <div v-if="expandedId === gladiator.id" class="mt-2 p-2 border-top">
-            <p class="small mb-1">
-              <span class="badge" :class="traitBadgeClass(gladiator.trait)">
-                <i :class="traitIcon(gladiator.trait)" />
-                {{ traitLabel(gladiator.trait) }}
-              </span>
-              {{ traitDescription(gladiator.trait) }}
-            </p>
-            <p class="small mb-1 text-muted">
-              Since recruitment: ATK
-              {{ statDelta(gladiator.stats.atk, gladiator.baseStats.atk) }} -
-              DEF
-              {{ statDelta(gladiator.stats.def, gladiator.baseStats.def) }} -
-              LUCK
-              {{ statDelta(gladiator.stats.luck, gladiator.baseStats.luck) }} -
-              Max HP
-              {{ statDelta(gladiator.stats.hpMax, gladiator.baseStats.hpMax) }}
-            </p>
-            <p class="small mb-2 text-muted">
-              {{ gladiator.battlesFought }} battle{{
-                gladiator.battlesFought === 1 ? "" : "s"
-              }}
-              won and survived.
-            </p>
-            <div class="d-flex gap-2 flex-wrap">
-              <button
-                class="btn btn-sm btn-outline-warning"
-                :disabled="!gladiator.resting && restingCount >= maxResting"
-                :title="
-                  !gladiator.resting && restingCount >= maxResting
-                    ? `All ${maxResting} Infirmary beds are occupied - upgrade the Infirmary for more`
-                    : ''
-                "
-                @click="toggleResting(gladiator.id)"
-              >
-                <i class="bi bi-moon-stars" />
-                {{ gladiator.resting ? "Send back to duty" : "Rest" }}
-              </button>
-              <button
-                class="btn btn-sm btn-outline-danger"
-                :disabled="!canRetireGladiator(gladiator)"
-                :title="
-                  canRetireGladiator(gladiator)
-                    ? 'Retire for a permanent Fan Donation bonus'
-                    : `Needs at least ${retireMinBattles} battles fought`
-                "
-                @click="retireGladiator(gladiator.id)"
-              >
-                <i class="bi bi-flag" /> Retire (+{{
-                  nextRetireeMarginalPercent
-                }}% gold/day forever)
-              </button>
-            </div>
-          </div>
-        </li>
-      </ul>
+          :gladiator="gladiator"
+          :expanded="expandedId === gladiator.id"
+          :rest-disabled="!gladiator.resting && restingCount >= maxResting"
+          :rest-disabled-reason="`All ${maxResting} Infirmary beds are occupied - upgrade the Infirmary for more`"
+          :retire-disabled="!canRetireGladiator(gladiator)"
+          :retire-disabled-reason="`Needs at least ${retireMinBattles} battles fought`"
+          :retire-bonus-percent="nextRetireeMarginalPercent"
+          @toggle-details="toggleDetails(gladiator.id)"
+          @rename="(name) => renameGladiator(gladiator.id, name)"
+          @toggle-resting="toggleResting(gladiator.id)"
+          @retire="retireGladiator(gladiator.id)"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -137,21 +52,15 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useGameStore } from "@/core/store/gameStore";
+import GladiatorCard from "@/components/subComponents/GladiatorCard.vue";
 import {
   barracksCapacity,
   gladiatorPower,
-  gladiatorPowerTier,
   canRetireGladiator,
   fanDonationGoldPerDay,
   RETIRE_MIN_BATTLES_FOUGHT,
   infirmaryMaxRestingGladiators,
 } from "@/core/game/gameRules";
-import {
-  traitLabel,
-  traitIcon,
-  traitBadgeClass,
-  traitDescription,
-} from "@/core/game/traitPresentation";
 
 const { userData, updateUserData } = useGameStore();
 
@@ -160,10 +69,6 @@ const capacity = computed(() =>
 );
 const retireMinBattles = RETIRE_MIN_BATTLES_FOUGHT;
 
-// The Fan Donation legacy bonus has diminishing returns (sqrt-scaled), so
-// each additional retiree is worth a little less than the last one - show
-// the actual marginal gain for the *next* retiree rather than a flat
-// constant that would overstate it past the first.
 const nextRetireeMarginalPercent = computed(() => {
   const legacyPoints = userData.value?.profile.legacyPoints || 0;
   const current = fanDonationGoldPerDay(1, legacyPoints);
@@ -198,43 +103,15 @@ const rankedGladiators = computed(() =>
     .sort((a, b) => b.power - a.power),
 );
 
-const powerTierLabel = (power: number) => {
-  const tier = gladiatorPowerTier(power);
-  return tier.charAt(0).toUpperCase() + tier.slice(1);
-};
-
-const powerBadgeClass = (power: number) => {
-  switch (gladiatorPowerTier(power)) {
-    case "legend":
-      return "bg-warning text-dark";
-    case "elite":
-      return "bg-success";
-    case "veteran":
-      return "bg-info text-dark";
-    default:
-      return "bg-secondary";
-  }
-};
-
-const statDelta = (current: number, base: number) => {
-  const delta = Math.round(current - base);
-  return delta >= 0 ? `+${delta}` : `${delta}`;
-};
-
 const expandedId = ref<string | null>(null);
 const toggleDetails = (gladiatorId: string) => {
   expandedId.value = expandedId.value === gladiatorId ? null : gladiatorId;
 };
 
-const renameGladiator = (gladiatorId: string, event: Event) => {
+const renameGladiator = (gladiatorId: string, name: string) => {
   if (!userData.value) return;
-  const input = event.target as HTMLInputElement;
   const gladiator = userData.value.gladiators[gladiatorId];
-  const name = input.value.trim();
-  if (!gladiator || !name || name === gladiator.name) {
-    input.value = gladiator?.name || "";
-    return;
-  }
+  if (!gladiator) return;
   updateUserData({
     gladiators: {
       ...userData.value.gladiators,
@@ -277,13 +154,16 @@ const retireGladiator = (gladiatorId: string) => {
 </script>
 
 <style scoped>
-.gladiator-name-input {
-  width: 160px;
+.gladiator-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.9rem;
 }
 
 @media (max-width: 576px) {
-  .gladiator-name-input {
-    width: 120px;
+  .gladiator-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.6rem;
   }
 }
 </style>

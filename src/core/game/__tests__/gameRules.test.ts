@@ -13,6 +13,7 @@ import {
   computeDownedSurvivalChance,
   DOWNED_SURVIVAL_CHANCE_MIN,
   DOWNED_SURVIVAL_CHANCE_MAX,
+  COMBAT_HP_FLOOR,
   LUCK_CAP,
   gladiatorSellValueMultiplier,
   gladiatorSellValue,
@@ -166,7 +167,7 @@ describe("computeAverageTeamPower (matchmaking)", () => {
         id: "a",
         name: "a",
         stats: rookie.stats,
-        line: "tank",
+        attribution: "tank",
         trait: rookie.trait,
       },
     ]);
@@ -175,7 +176,7 @@ describe("computeAverageTeamPower (matchmaking)", () => {
         id: "b",
         name: "b",
         stats: veteranStats,
-        line: "tank",
+        attribution: "tank",
         trait: rookie.trait,
       },
     ]);
@@ -190,14 +191,14 @@ describe("computeAverageTeamPower (matchmaking)", () => {
   it("uses current HP, not max HP, so a wounded team draws a weaker rival", () => {
     const stats = { atk: 30, def: 30, luck: 30, hpMax: 50, hpCurrent: 50 };
     const healthy = computeCombatUnits([
-      { id: "a", name: "a", stats, line: "tank", trait: "stoic" },
+      { id: "a", name: "a", stats, attribution: "tank", trait: "stoic" },
     ]);
     const wounded = computeCombatUnits([
       {
         id: "a",
         name: "a",
         stats: { ...stats, hpCurrent: 10 },
-        line: "tank",
+        attribution: "tank",
         trait: "stoic",
       },
     ]);
@@ -225,6 +226,56 @@ describe("computeDownedSurvivalChance", () => {
     const at90 = computeDownedSurvivalChance(90);
     expect(at45).toBeGreaterThan(at0);
     expect(at90).toBeGreaterThan(at45);
+  });
+});
+
+describe("resolveCombat - permadeath is Hard-only", () => {
+  // 0 Luck pins dodge chance at exactly 0 (computeDodgeChance), so the weak
+  // side is guaranteed to get hit and knocked down rather than occasionally
+  // dodging its way through all MAX_COMBAT_ROUNDS - the overwhelming stat
+  // gap then guarantees a loss, never a mutual near-miss.
+  const weak = {
+    id: "weak",
+    name: "weak",
+    stats: { atk: 1, def: 1, luck: 0, hpMax: 5, hpCurrent: 5 },
+    attribution: "dps" as const,
+    trait: "brute" as const,
+  };
+  const strong = {
+    id: "strong",
+    name: "strong",
+    stats: { atk: 200, def: 50, luck: 0, hpMax: 500, hpCurrent: 500 },
+    attribution: "dps" as const,
+    trait: "brute" as const,
+  };
+
+  it("never lets a knocked-down gladiator die on Easy or Normal", () => {
+    for (const difficulty of ["easy", "normal"] as const) {
+      const rng = mulberry32(99);
+      for (let i = 0; i < 100; i++) {
+        const result = resolveCombat(
+          computeCombatUnits([weak]),
+          computeCombatUnits([strong]),
+          { difficulty, rng },
+        );
+        expect(result.victory).toBe(false);
+        expect(result.trainerUnits[0].hpCurrent).toBe(COMBAT_HP_FLOOR);
+      }
+    }
+  });
+
+  it("can let a knocked-down gladiator die on Hard", () => {
+    const rng = mulberry32(99);
+    const outcomes = new Set<number>();
+    for (let i = 0; i < 200; i++) {
+      const result = resolveCombat(
+        computeCombatUnits([weak]),
+        computeCombatUnits([strong]),
+        { difficulty: "hard", rng },
+      );
+      outcomes.add(result.trainerUnits[0].hpCurrent);
+    }
+    expect(outcomes).toEqual(new Set([0, COMBAT_HP_FLOOR]));
   });
 });
 
@@ -335,7 +386,7 @@ function simulateRookieTeamFights(
       id: `g${idx}`,
       name: `g${idx}`,
       stats,
-      line: lines[idx],
+      attribution: lines[idx],
       trait: "stoic" as const,
     }));
     const trainerUnits = computeCombatUnits(placed);

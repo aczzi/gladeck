@@ -1,5 +1,9 @@
 <template>
   <div class="container-fluid py-3">
+    <Arena
+      v-if="showArenaModal"
+      @close="showArenaModal = false"
+    />
     <div class="row">
       <div class="col-md-6">
         <Market />
@@ -8,26 +12,28 @@
         <FanDonation />
       </div>
       <div class="col-md-6">
+        <button
+          class="btn btn-danger btn-sm w-100 mb-3"
+          :disabled="!canFight"
+          @click="showArenaModal = true"
+        >
+          Send gladiators to combat (PvE)
+        </button>
         <Barracks />
         <div class="text-center mt-3">
-          <p v-if="!canFight" class="alert alert-warning">
+          <p
+            v-if="!canFight"
+            class="alert alert-warning"
+          >
             {{
               hasGladiators
                 ? "All your gladiators are resting - send at least one back to duty at the Barracks."
                 : "Recruit at least one gladiator at the Camp before you can fight."
             }}
           </p>
-          <button
-            class="btn btn-danger btn-lg"
-            :disabled="!canFight"
-            @click="showArenaModal = true"
-          >
-            Send gladiators to combat (PvE)
-          </button>
         </div>
       </div>
     </div>
-    <Arena v-if="showArenaModal" @close="showArenaModal = false" />
   </div>
 </template>
 

@@ -10,6 +10,7 @@
   --gladiator-blood: #8b2e2e;
   --gladiator-steel: #5b6a72;
   --gladiator-laurel: #6b8e23;
+  --gladiator-luck: #673f89;
 
   /* Reskin Bootstrap's own palette so every existing bg-, btn- and badge
      component inherits the theme without touching each component. */
@@ -216,4 +217,31 @@ h6,
 .btn-outline-info {
   --bs-btn-hover-color: #fff;
   --bs-btn-active-color: #fff;
+}
+
+/* Bootstrap has no built-in "bronze" theme color to generate .text-bg-/
+   .border- utilities for, so it's hand-rolled here in the same shape as
+   Bootstrap's own - needed so Crowd Favorite (gold) and Brute (also gold,
+   via warning) don't share a trait color; see traitBadgeClass. */
+.text-bg-bronze {
+  color: #fff;
+  background-color: var(--gladiator-bronze);
+}
+.border-bronze {
+  border-color: var(--gladiator-bronze) !important;
+}
+
+.section-title {
+  color: var(--gladiator-gold-bright, #e0b64d);
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+.section-title:first-of-type {
+  margin-top: 0;
+}
+.building-card {
+  transition: border-color 0.15s ease;
+}
+.building-card:hover {
+  border-color: var(--gladiator-gold, #c9972c);
 }

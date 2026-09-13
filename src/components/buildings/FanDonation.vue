@@ -3,18 +3,17 @@
     <div
       class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
     >
-      <span
-        ><i class="bi bi-gift-fill" /> Fan donation - Level {{ level }}</span
-      >
-      <span class="badge bg-secondary"
-        >{{ goldPerDay.toFixed(0) }} gold / day</span
-      >
+      <span><i class="bi bi-gift-fill" /> Fan donation - Level {{ level }}</span>
+      <span class="badge bg-secondary">{{ goldPerDay.toFixed(0) }} gold / day</span>
     </div>
     <div class="card-body">
       <p class="card-text">
         <strong>{{ pendingGold }}</strong> gold to collect.
       </p>
-      <p v-if="legacyPoints > 0" class="text-muted small">
+      <p
+        v-if="legacyPoints > 0"
+        class="text-muted small"
+      >
         <i class="bi bi-award-fill" /> {{ legacyPoints }} retired legend{{
           legacyPoints > 1 ? "s" : ""
         }}
@@ -29,7 +28,10 @@
           <i class="bi bi-download" /> Collect
         </button>
       </div>
-      <BuildingLevelsTable :current-level="level" :rows="levelRows" />
+      <BuildingLevelsTable
+        :current-level="level"
+        :rows="levelRows"
+      />
       <div class="d-flex gap-2 mb-3">
         <button
           v-if="!isMaxLevel"
@@ -39,7 +41,10 @@
         >
           Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
         </button>
-        <span v-else class="badge bg-success align-self-center">Max level</span>
+        <span
+          v-else
+          class="badge bg-success align-self-center"
+        >Max level</span>
       </div>
     </div>
   </div>

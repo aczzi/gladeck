@@ -1,0 +1,267 @@
+.gladiator-card {
+  --tier-color: var(--gladiator-steel);
+  --tier-glow: color-mix(in srgb, var(--gladiator-steel) 35%, transparent);
+  --tier-ink: #fff;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.55rem;
+  border-radius: 14px;
+  border: 1px solid var(--tier-color);
+  background: linear-gradient(
+    160deg,
+    var(--gladiator-stone) 0%,
+    var(--gladiator-bg-alt) 60%,
+    var(--gladiator-stone) 100%
+  );
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.gladiator-card:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    0 0 0 1px var(--tier-glow) inset,
+    0 8px 20px var(--tier-glow),
+    0 0 22px var(--tier-glow);
+}
+
+.gladiator-card.tier-rookie {
+  --tier-color: var(--gladiator-steel);
+  --tier-glow: color-mix(in srgb, var(--gladiator-steel) 35%, transparent);
+  --tier-ink: #fff;
+}
+.gladiator-card.tier-veteran {
+  --tier-color: var(--gladiator-laurel);
+  --tier-glow: color-mix(in srgb, var(--gladiator-laurel) 40%, transparent);
+  --tier-ink: #fff;
+}
+.gladiator-card.tier-elite {
+  --tier-color: var(--gladiator-blood);
+  --tier-glow: color-mix(in srgb, var(--gladiator-blood) 45%, transparent);
+  --tier-ink: #fff;
+}
+.gladiator-card.tier-legend {
+  --tier-color: var(--gladiator-gold-bright);
+  --tier-glow: color-mix(
+    in srgb,
+    var(--gladiator-gold-bright) 55%,
+    transparent
+  );
+  --tier-ink: #000;
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--gladiator-gold) 18%, var(--gladiator-stone)) 0%,
+    color-mix(in srgb, var(--gladiator-gold) 10%, var(--gladiator-bg-alt)) 55%,
+    var(--gladiator-stone) 100%
+  );
+}
+
+.gladiator-card.is-resting {
+  opacity: 0.75;
+}
+
+.gc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.gc-name-edit {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gc-name-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed
+    color-mix(in srgb, var(--gladiator-parchment) 35%, transparent);
+  color: var(--gladiator-parchment);
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0 2px 2px;
+}
+.gc-name-input:focus {
+  outline: none;
+  border-bottom-color: var(--tier-color);
+}
+
+.gc-name-save {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 5px;
+  background: var(--tier-color);
+  color: var(--tier-ink);
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.gc-name-save:hover {
+  filter: brightness(1.1);
+}
+
+.gc-tier-stamp {
+  flex: 0 0 auto;
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--tier-ink);
+  background: var(--tier-color);
+  border-radius: 6px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+.gc-resting-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--gladiator-gold-bright);
+  background: color-mix(in srgb, var(--gladiator-bg) 75%, transparent);
+  border-radius: 10px;
+}
+
+.gc-bar-track {
+  flex: 1 1 auto;
+  height: 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--gladiator-steel) 25%, transparent);
+  overflow: hidden;
+}
+
+.gc-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.2s ease;
+}
+
+.gc-hp-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.gc-hp-label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: #cbb9a0;
+  width: 20px;
+}
+
+.gc-hp-value {
+  font-size: 0.65rem;
+  color: #cbb9a0;
+  width: 52px;
+  text-align: right;
+  flex: 0 0 auto;
+}
+
+.gc-hp-high {
+  background: var(--gladiator-laurel);
+}
+.gc-hp-mid {
+  background: var(--gladiator-gold);
+}
+.gc-hp-low {
+  background: var(--gladiator-blood);
+}
+
+.gc-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.gc-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.65rem;
+}
+
+.gc-stat-label {
+  width: 46px;
+  flex: 0 0 auto;
+  color: #cbb9a0;
+}
+
+.gc-stat-value {
+  width: 26px;
+  flex: 0 0 auto;
+  text-align: right;
+  color: var(--gladiator-parchment);
+}
+
+.gc-atk {
+  background: var(--gladiator-blood);
+}
+.gc-def {
+  background: var(--gladiator-steel);
+}
+.gc-luck {
+  background: var(--gladiator-luck);
+}
+
+.gc-ability {
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--gladiator-bronze) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gladiator-bronze) 55%, transparent);
+  padding: 0.3rem 0.4rem;
+}
+
+.gc-ability-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--tier-color);
+  margin-bottom: 1px;
+}
+
+.gc-ability-text {
+  margin: 0;
+  font-size: 0.62rem;
+  line-height: 1.25;
+  color: #cbb9a0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.gc-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.gc-battles {
+  font-size: 0.65rem;
+  color: #cbb9a0;
+}
+
+@media (max-width: 576px) {
+  .gladiator-card {
+    padding: 0.5rem;
+  }
+}

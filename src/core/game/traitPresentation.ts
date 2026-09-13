@@ -53,7 +53,10 @@ export function traitBadgeClass(trait: GladiatorTrait): string {
     case "bloodthirsty":
       return "text-bg-danger";
     case "crowdFavorite":
-      return "text-bg-primary";
+      // Not text-bg-primary: primary and warning (Brute) are both mapped to
+      // gladiator-gold in root.css, so that would give two traits the same
+      // color - bronze keeps every trait visually distinct.
+      return "text-bg-bronze";
     case "incorrigible":
       return "text-bg-secondary";
     default:

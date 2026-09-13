@@ -3,14 +3,10 @@
     <div
       class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
     >
-      <span
-        ><i class="bi bi-heart-pulse-fill" /> Infirmary - Level
-        {{ level }}</span
-      >
+      <span><i class="bi bi-heart-pulse-fill" /> Infirmary - Level
+        {{ level }}</span>
       <div class="d-flex gap-2 flex-wrap">
-        <span class="badge bg-secondary"
-          >{{ (healPercent * 100).toFixed(0) }}% max HP / heal</span
-        >
+        <span class="badge bg-secondary">{{ (healPercent * 100).toFixed(0) }}% max HP / heal</span>
         <span
           class="badge"
           :class="
@@ -23,22 +19,26 @@
       </div>
     </div>
     <div class="card-body">
-      <p v-if="injuredGladiators.length === 0" class="text-muted">
+      <p
+        v-if="injuredGladiators.length === 0"
+        class="text-muted"
+      >
         No injured gladiators.
       </p>
-      <ul v-else class="list-group mb-2">
+      <ul
+        v-else
+        class="list-group mb-2"
+      >
         <li
           v-for="gladiator in injuredGladiators"
           :key="gladiator.id"
           class="list-group-item bg-dark text-light d-flex justify-content-between align-items-center"
         >
-          <span
-            >{{ gladiator.name }} -
+          <span>{{ gladiator.name }} -
             {{ Math.round(gladiator.stats.hpCurrent) }}/{{
               Math.round(gladiator.stats.hpMax)
             }}
-            HP</span
-          >
+            HP</span>
           <button
             class="btn btn-sm btn-success"
             :disabled="cooldownRemaining(gladiator) > 0 || gold < healCost"
@@ -53,7 +53,10 @@
           </button>
         </li>
       </ul>
-      <BuildingLevelsTable :current-level="level" :rows="levelRows" />
+      <BuildingLevelsTable
+        :current-level="level"
+        :rows="levelRows"
+      />
       <button
         v-if="!isMaxLevel"
         class="btn btn-outline-light"
@@ -62,7 +65,10 @@
       >
         Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
       </button>
-      <span v-else class="badge bg-success">Max level</span>
+      <span
+        v-else
+        class="badge bg-success"
+      >Max level</span>
     </div>
   </div>
 </template>

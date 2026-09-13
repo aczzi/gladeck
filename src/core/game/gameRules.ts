@@ -105,10 +105,10 @@ export function pickRandomTrait(rng: RngFn = Math.random): GladiatorTrait {
 // full-DPS team strictly dominant over any team using Tank or Support.
 export function applyAttribution(
   stats: GladiatorStats,
-  line: Attribution,
+  attribution: Attribution,
 ): GladiatorStats {
-  if (line === "support") return { ...stats };
-  if (line === "dps") {
+  if (attribution === "support") return { ...stats };
+  if (attribution === "dps") {
     return {
       atk: stats.atk * 1.2,
       luck: stats.luck,
@@ -147,8 +147,11 @@ export const SUPPORT_TEAM_DEF_BUFF_PERCENT = 8;
 // or 2 can never exceed it anyway - the cap only actually bites at 3 or 4).
 export const MAX_DPS_PER_TEAM = 2;
 
-export function isValidTeamComposition(lines: Attribution[]): boolean {
-  return lines.filter((line) => line === "dps").length <= MAX_DPS_PER_TEAM;
+export function isValidTeamComposition(attributions: Attribution[]): boolean {
+  return (
+    attributions.filter((attribution) => attribution === "dps").length <=
+    MAX_DPS_PER_TEAM
+  );
 }
 
 // Applies the Support team buff in place, once, before combat starts.
@@ -214,23 +217,21 @@ export function pickRandomDifficulty(
 }
 
 // The difficulty pool for a fight widens with how many veteran-or-above
-// gladiators (see gladiatorPowerTier) are in the sent team, so a fresh
-// rookie squad is never unfairly thrown at Hard, while a team stacked with
-// veterans can't just keep farming Easy: 0 veterans -> Easy only, 1 veteran
-// -> Easy/Normal, 2+ veterans -> the full Easy/Normal/Hard pool.
+// gladiators are sent, so a team of rookies only ever sees Easy fights
+
 function countVeteranGladiators(
   gladiators: { stats: GladiatorStats; battlesFought: number }[],
 ): number {
   return gladiators.filter(
     (g) =>
-      gladiatorPowerTier(gladiatorPower(g.stats, g.battlesFought)) !==
-      "rookie",
+      gladiatorPowerTier(gladiatorPower(g.stats, g.battlesFought)) !== "rookie",
   ).length;
 }
 
 const ARENA_DIFFICULTY_POOL_BY_VETERAN_COUNT: ArenaDifficulty[][] = [
   ["easy"],
   ["easy", "normal"],
+  ["easy", "normal", "hard"],
 ];
 
 export function pickArenaDifficultyForTeam(
@@ -252,13 +253,10 @@ export const DIFFICULTY_GOLD_REWARD_MULTIPLIER: Record<
   hard: 1.5,
 };
 
-// PvE rank points scale with difficulty rather than a flat 1-per-win, so the
-// raw total reflects some of the risk actually taken on rather than pure
-// combat volume (farming Easy wins no longer earns rank as fast as Hard).
 export const DIFFICULTY_RANK_POINTS_REWARD: Record<ArenaDifficulty, number> = {
   easy: 1,
-  normal: 1,
-  hard: 2,
+  normal: 2,
+  hard: 3,
 };
 
 export function computeRivalBudget(
@@ -278,24 +276,26 @@ export function computeCombatUnits(
     id: string;
     name: string;
     stats: GladiatorStats;
-    line: Attribution;
+    attribution: Attribution;
     trait: GladiatorTrait;
   }[],
 ): CombatUnit[] {
-  const units = sentGladiators.map(({ id, name, stats, line, trait }) => {
-    const mod = applyAttribution(stats, line);
-    return {
-      id,
-      name,
-      attribution: line,
-      trait,
-      atk: mod.atk,
-      luck: mod.luck,
-      def: mod.def,
-      initialHp: mod.hpCurrent,
-      hpCurrent: mod.hpCurrent,
-    };
-  });
+  const units = sentGladiators.map(
+    ({ id, name, stats, attribution, trait }) => {
+      const mod = applyAttribution(stats, attribution);
+      return {
+        id,
+        name,
+        attribution,
+        trait,
+        atk: mod.atk,
+        luck: mod.luck,
+        def: mod.def,
+        initialHp: mod.hpCurrent,
+        hpCurrent: mod.hpCurrent,
+      };
+    },
+  );
   applySupportTeamBuff(units);
   return units;
 }
@@ -304,15 +304,6 @@ export const RIVAL_STAT_WEIGHT_BASELINE = 1.5;
 
 type CappedStatKey = "atk" | "luck" | "def" | "hp";
 
-// Water-fills `budgetTotal` across `entries` respecting each one's cap: any
-// entry whose proportional share would exceed its cap is clamped there, and
-// the leftover is re-shared among the still-uncapped entries by their
-// relative weights (repeating until nothing exceeds its cap). This keeps a
-// rival's individual stats within the same caps a player gladiator's are
-// bound by (STAT_MAX for Attack/Defense, the lower LUCK_CAP for Luck)
-// without dumping every bit of overflow into whichever entry happens to be
-// uncapped (HP) - Atk/Def keep absorbing budget past Luck's low cap instead
-// of stalling out early while HP balloons.
 function allocateCappedBudget(
   budgetTotal: number,
   entries: { key: CappedStatKey; weight: number; cap: number }[],
@@ -339,9 +330,6 @@ function allocateCappedBudget(
   return result;
 }
 
-// Same composition rule as the trainer's team (up to MAX_DPS_PER_TEAM DPS,
-// the rest a random Tank/Support mix) so rivals play by the same rules the
-// player does - see the "Give roles a real function" TODO priority.
 function rollRivalAttributions(count: number, rng: RngFn): Attribution[] {
   const dpsSlots = Math.min(MAX_DPS_PER_TEAM, count);
   return Array.from({ length: count }, (_, i) => {
@@ -486,10 +474,18 @@ export function computeDownedSurvivalChance(luck: number): number {
 
 // Resolves the fate of every unit still downed once the fight is over: a
 // single roll per unit, so nobody is executed or spared more than once.
-function resolveDownedFates(units: CombatUnit[], rng: RngFn): void {
+// Permadeath is a Hard-only stake (PvP later on) - Easy and Normal always
+// leave a knocked-down gladiator alive at the HP floor, so new/casual teams
+// can lose a fight without losing a gladiator.
+function resolveDownedFates(
+  units: CombatUnit[],
+  rng: RngFn,
+  difficulty: ArenaDifficulty,
+): void {
   for (const unit of units) {
     if (!isDowned(unit)) continue;
-    const survives = rng() < computeDownedSurvivalChance(unit.luck);
+    const survives =
+      difficulty !== "hard" || rng() < computeDownedSurvivalChance(unit.luck);
     unit.hpCurrent = survives ? COMBAT_HP_FLOOR : 0;
   }
 }
@@ -625,8 +621,8 @@ export function resolveCombat(
 
   // Knockouts are only actually resolved to "survives" or "dies" once the
   // fight is fully over - see resolveDownedFates.
-  resolveDownedFates(trainer, rng);
-  resolveDownedFates(rival, rng);
+  resolveDownedFates(trainer, rng, difficulty);
+  resolveDownedFates(rival, rng, difficulty);
 
   // Crowd Favorite's bonus is capped per team so stacking several doesn't
   // snowball the reward - it also only ever applies to this flat/bonus

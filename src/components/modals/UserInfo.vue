@@ -1,24 +1,39 @@
 <template>
-  <div v-show="isAuthenticated" class="container-fluid">
+  <div
+    v-show="isAuthenticated"
+    class="container-fluid"
+  >
     <ul class="list-group">
-      <li class="list-group-item">Email: {{ user.email }}</li>
-      <li class="list-group-item">UID: {{ user.uid }}</li>
+      <li class="list-group-item">
+        Email: {{ user.email }}
+      </li>
+      <li class="list-group-item">
+        UID: {{ user.uid }}
+      </li>
       <li class="list-group-item">
         Status: {{ isActiveUser ? "Active" : "Inactive" }}
       </li>
-      <li class="list-group-item">PvE Rank points: {{ pveRankPoints }}</li>
-      <li class="list-group-item">PvP Rank points: {{ pvpRankPoints }}</li>
-      <li class="list-group-item">Gold: {{ gold }}</li>
+      <li class="list-group-item">
+        PvE Rank points: {{ pveRankPoints }}
+      </li>
+      <li class="list-group-item">
+        PvP Rank points: {{ pvpRankPoints }}
+      </li>
+      <li class="list-group-item">
+        Gold: {{ gold }}
+      </li>
       <li class="list-group-item">
         <div class="row g-3 align-items-center">
-          <div class="col-auto">Username:</div>
+          <div class="col-auto">
+            Username:
+          </div>
           <div class="col-auto">
             <input
               v-model="usernameInput"
               class="form-control"
               placeholder="Enter your username"
               @keyup.enter="saveUsername"
-            />
+            >
           </div>
           <div class="col-auto">
             <button
@@ -34,7 +49,9 @@
       </li>
       <li class="list-group-item">
         <div class="row g-3 align-items-center">
-          <div class="col-auto">Delete my account and my game:</div>
+          <div class="col-auto">
+            Delete my account and my game:
+          </div>
           <div class="col-auto">
             <input
               id="deleteInput"
@@ -42,7 +59,7 @@
               placeholder="Type DELETE"
               autocomplete="off"
               @input="getDelete"
-            />
+            >
           </div>
           <div class="col-auto">
             <span class="form-text">
