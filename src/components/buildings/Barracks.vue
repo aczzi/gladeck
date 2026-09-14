@@ -12,7 +12,7 @@
     </div>
     <div class="card-body">
       <p v-if="gladiators.length === 0" class="text-muted m-2">
-        No gladiators yet - recruit some at the Market.
+        No gladiator, recruit some at the Market.
       </p>
       <div v-else class="gladiator-grid m-2">
         <GladiatorCard
@@ -64,7 +64,7 @@ const rankedGladiators = computed(() =>
   gladiators.value
     .map((gladiator) => ({
       ...gladiator,
-      baseStats: gladiator.stats,
+      baseStats: gladiator.baseStats,
       trait: gladiator.trait,
       power: gladiatorPower(gladiator.stats, gladiator.battlesFought),
     }))

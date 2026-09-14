@@ -219,14 +219,7 @@
 
 .gc-ability-text {
   margin: 0;
-  font-size: 0.62rem;
-  line-height: 1.25;
-  color: #cbb9a0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  font-size: 0.7rem;
 }
 
 .gc-battles {

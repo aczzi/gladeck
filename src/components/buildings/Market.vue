@@ -64,7 +64,7 @@
         </button>
         <span v-else class="badge bg-success align-self-center">Max level</span>
       </div>
-      <span v-else class="btn btn-outline-secondary">
+      <span v-else class="btn btn-outline-info">
         Upgrade <span><i class="bi bi-coin" /></span>
       </span>
     </div>

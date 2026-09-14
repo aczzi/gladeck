@@ -94,7 +94,7 @@
                     :aria-expanded="showSynergyReference"
                     @click="showSynergyReference = !showSynergyReference"
                   >
-                    <i class="bi bi-stars" /> Duo synergies reference
+                    <i class="bi bi-stars" /> Duo synergies
                     <i
                       :class="
                         showSynergyReference
@@ -379,7 +379,7 @@
                   class="text-center d-flex gap-2 justify-content-center"
                 >
                   <button
-                    class="btn btn-outline-secondary"
+                    class="btn btn-outline"
                     @click="$emit('close')"
                   >
                     Close

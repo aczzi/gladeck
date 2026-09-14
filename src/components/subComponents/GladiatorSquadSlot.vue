@@ -1,5 +1,5 @@
 <template>
-  <div class="gladiator-card squad-slot" :class="cardThemeClass">
+  <div class="gladiator-card squad-slot" :class="tierPowerRankAttribut">
     <div class="gc-header">
       <span v-if="inSquad" class="squad-slot__position">#{{ position }}</span>
       <span class="squad-slot__name">{{ gladiator.name }}</span>
@@ -124,12 +124,8 @@ const tierLabel = computed(() => {
   return tier.charAt(0).toUpperCase() + tier.slice(1);
 });
 
-// Pick mode borrows its accent color from power tier (which gladiator is
-// strong?) ; squad mode borrows it from the assigned role instead (what is
-// this gladiator doing in the fight?) - never both at once, same split the
-// two merged components used before.
-const cardThemeClass = computed(() => {
-  if (props.inSquad) return props.role ? `role-${props.role}` : "";
+const tierPowerRankAttribut = computed(() => {
+  if (props.inSquad) return props.role ? `role-${props.role}` : "role-unknown";
   return `tier-${gladiatorPowerTier(power.value)}`;
 });
 
@@ -151,6 +147,10 @@ const displayedStats = computed(() =>
 }
 .squad-slot.role-support {
   --tier-color: var(--bs-secondary);
+  --tier-ink: #fff;
+}
+.squad-slot.role-unknown {
+  --tier-color: var(--gladiator-bronze);
   --tier-ink: #fff;
 }
 

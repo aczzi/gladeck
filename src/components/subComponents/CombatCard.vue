@@ -12,7 +12,7 @@
   >
     <div class="gc-header">
       <span class="combat-card__name">{{ name }}</span>
-      <span class="badge" :class="setAttributionBadgeClass">
+      <span class="badge rounded-pill" :class="setAttributionBadgeClass">
         <i :class="setAttributionIcon" />
       </span>
     </div>

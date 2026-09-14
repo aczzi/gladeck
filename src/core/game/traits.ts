@@ -72,17 +72,17 @@ export function traitIcon(trait: GladiatorTrait): string {
 export function traitBadgeClass(trait: GladiatorTrait): string {
   switch (trait) {
     case "brute":
-      return "text-bg-warning";
+      return "badge-trait-brute";
     case "stoic":
-      return "text-bg-info";
+      return "badge-trait-stoic";
     case "bloodthirsty":
-      return "text-bg-danger";
+      return "badge-trait-bloodthirsty";
     case "crowdFavorite":
-      return "text-bg-bronze";
+      return "badge-trait-crowd-favorite";
     case "incorrigible":
-      return "text-bg-secondary";
+      return "badge-trait-incorrigible";
     default:
-      return "text-bg-success";
+      return "badge-trait-lucky";
   }
 }
 

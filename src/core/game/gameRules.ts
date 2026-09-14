@@ -335,12 +335,8 @@ export function computeCombatUnits(
         atk: mod.atk,
         luck: mod.luck,
         def: mod.def,
-        initialHp: mod.hpCurrent,
+        initialHp: mod.hpMax,
         hpCurrent: mod.hpCurrent,
-        // Tier is read off the pre-attribution base stats (same source as
-        // pickArenaDifficultyForTeam's veteran count), not the role-modified
-        // combat stats - a DPS/Tank/Support swing shouldn't flip whether a
-        // gladiator can die.
         isVeteran:
           gladiatorPowerTier(gladiatorPower(stats, battlesFought)) !== "rookie",
       };

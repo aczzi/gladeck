@@ -9,19 +9,18 @@
         <FanDonation />
       </div>
       <div class="col-md-6">
-        <button
-          class="btn btn-danger w-100 mb-3"
-          :disabled="!hasGladiators"
-          @click="showArenaModal = true"
-        >
-          Send gladiators to combat (PvE)
-        </button>
-        <Barracks />
-        <div class="text-center mt-3">
-          <p v-if="!hasGladiators" class="alert alert-warning">
-            Recruit at least one gladiator at the Camp before you can fight.
+        <div class="text-center">
+          <p v-if="!hasGladiators" class="alert alert-danger">
+            No gladiator available for combat.
           </p>
+          <button v-else
+            class="btn btn-danger w-100 mb-3"
+            @click="showArenaModal = true"
+          >
+            Send gladiators to combat (PvE)
+          </button>
         </div>
+        <Barracks />
       </div>
     </div>
   </div>

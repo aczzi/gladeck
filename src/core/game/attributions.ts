@@ -6,7 +6,7 @@ export function attributionIcon(attribution: Attribution): string {
   return "bi bi-people-fill";
 }
 export function attributionBadgeClass(attribution: Attribution): string {
-  if (attribution === "dps") return "text-bg-primary";
-  if (attribution === "tank") return "text-bg-info";
-  return "text-bg-secondary";
+  if (attribution === "dps") return "badge-attr-dps";
+  if (attribution === "tank") return "badge-attr-tank";
+  return "badge-attr-support";
 }

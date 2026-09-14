@@ -1,5 +1,5 @@
 <template>
-  <div class="gladiator-card" :class="tierClass">
+  <div class="gladiator-card" :class="tierPowerRank">
     <div class="gc-header">
       <div class="gc-name-edit">
         <input
@@ -31,21 +31,12 @@
     <div class="gc-ability mt-2">
       <p class="gc-ability-text">
         Since recruitment:<br />
-        ATK {{ statDelta(gladiator.stats.atk, gladiator.baseStats.atk) }} DEF
-        {{ statDelta(gladiator.stats.def, gladiator.baseStats.def) }} LUCK
-        {{ statDelta(gladiator.stats.luck, gladiator.baseStats.luck) }} Max HP
-        {{ statDelta(gladiator.stats.hpMax, gladiator.baseStats.hpMax) }}
+        <span class="badge">ATK {{ statDelta(gladiator.stats.atk, gladiator.baseStats.atk) }}</span> 
+        <span class="badge">DEF {{ statDelta(gladiator.stats.def, gladiator.baseStats.def) }}</span> 
+        <span class="badge">LUCK {{ statDelta(gladiator.stats.luck, gladiator.baseStats.luck) }}</span> 
+        <span class="badge">Max HP {{ statDelta(gladiator.stats.hpMax, gladiator.baseStats.hpMax) }}</span> 
       </p>
     </div>
-
-    <button
-      v-if="canRetire"
-      type="button"
-      class="btn btn-outline-danger"
-      @click="$emit('retire')"
-    >
-      <i class="bi bi-flag" /> Retire
-    </button>
 
     <span class="badge" :class="traitBadgeClass(gladiator.trait)">
       <i :class="traitIcon(gladiator.trait)" />
@@ -63,6 +54,15 @@
         <i class="bi bi-lightning" /> {{ props.gladiator.power }}
       </span>
     </div>
+
+    <button
+      v-if="canRetire"
+      type="button"
+      class="btn btn-outline-danger btn-sm"
+      @click="$emit('retire')"
+    >
+      <i class="bi bi-flag" /> Retire
+    </button>
   </div>
 </template>
 
@@ -88,7 +88,7 @@ const tierLabel = computed(() => {
   return tier.charAt(0).toUpperCase() + tier.slice(1);
 });
 
-const tierClass = computed(
+const tierPowerRank = computed(
   () => `tier-${gladiatorPowerTier(props.gladiator.power)}`,
 );
 
