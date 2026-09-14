@@ -20,8 +20,8 @@
           class="btn btn-outline-primary"
           :disabled="
             gold < recruitCost ||
-              gladiatorCount >= capacity ||
-              tradesLeftThisHour <= 0
+            gladiatorCount >= capacity ||
+            tradesLeftThisHour <= 0
           "
           @click="recruit"
         >
@@ -32,10 +32,7 @@
       <div class="row g-2 align-items-end mb-2">
         <div class="col-auto">
           <label class="form-label">Sell a gladiator</label>
-          <select
-            v-model="selectedGladiatorId"
-            class="form-select"
-          >
+          <select v-model="selectedGladiatorId" class="form-select">
             <option
               v-for="gladiator in sellableGladiators"
               :key="gladiator.id"
@@ -55,27 +52,21 @@
           </button>
         </div>
       </div>
-      <BuildingLevelsTable
-        :current-level="level"
-        :rows="levelRows"
-      />
-      <button
-        v-if="!isMaxLevel"
-        class="btn btn-outline-light"
-        :disabled="gold < upgradeCost || isTradeCooldownActive"
-        :title="
-          isTradeCooldownActive
-            ? 'Wait for trades to reset before upgrading'
-            : ''
-        "
-        @click="upgrade"
-      >
-        Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
-      </button>
-      <span
-        v-else
-        class="badge bg-success"
-      >Max level</span>
+      <BuildingLevelsTable :current-level="level" :rows="levelRows" />
+      <div v-if="mode === 'cloud'" class="d-flex gap-2 mb-3">
+        <button
+          v-if="!isMaxLevel"
+          class="btn btn-outline-light"
+          :disabled="gold < upgradeCost"
+          @click="upgrade"
+        >
+          Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
+        </button>
+        <span v-else class="badge bg-success align-self-center">Max level</span>
+      </div>
+      <span v-else class="btn btn-outline-secondary">
+        Upgrade <span><i class="bi bi-coin" /></span>
+      </span>
     </div>
   </div>
 </template>
@@ -87,18 +78,19 @@ import { useGameStore } from "@/core/store/gameStore";
 import BuildingLevelsTable from "@/components/buildings/BuildingLevelsTable.vue";
 import { MARKET_RECRUIT_COST } from "@/core/game/constantes";
 import {
-  marketTradesPerHour,
-  marketTradesResetCooldownRemainingMs,
   buildingUpgradeCost,
-  isBuildingMaxLevel,
   barracksCapacity,
   createGladiator,
+  isBuildingMaxLevel,
+  gladiatorPower,
   gladiatorSellValue,
+  marketTradesPerHour,
+  marketTradesResetCooldownRemainingMs,
 } from "@/core/game/gameRules";
 import { MAX_BUILDING_LEVEL } from "@/core/game/constantes";
 import type { Gladiator } from "@/core/game/types";
 
-const { userData, gold, updateUserData } = useGameStore();
+const { userData, gold, updateUserData, mode } = useGameStore();
 
 const level = computed(() => userData.value?.buildings.market.level || 1);
 const tradesLeftThisHour = computed(
@@ -107,6 +99,7 @@ const tradesLeftThisHour = computed(
 const isMaxLevel = computed(() => isBuildingMaxLevel(level.value));
 const upgradeCost = computed(() => buildingUpgradeCost(level.value));
 const recruitCost = MARKET_RECRUIT_COST;
+
 const levelRows = computed(() =>
   Array.from({ length: MAX_BUILDING_LEVEL }, (_, i) => i + 1).map((lvl) => ({
     level: lvl,
@@ -134,9 +127,6 @@ const tradesResetCooldownMs = computed(() =>
   ),
 );
 
-// Upgrading refills tradesLeftThisHour to the new level's allowance, so
-// allowing it mid-cooldown would let gold buy an extra free refill on top
-// of the one already queued up for when the hourly reset fires.
 const isTradeCooldownActive = computed(() => tradesLeftThisHour.value <= 0);
 
 const formatCooldown = (ms: number) => {
@@ -146,18 +136,6 @@ const formatCooldown = (ms: number) => {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 };
 
-// Once the 1h cooldown elapses, silently refill tradesLeftThisHour - this is
-// a deterministic hourly refresh (unlike the Fan Donation Luck Boost roll),
-// so it doesn't need an explicit player click.
-//
-// This is a watchEffect (not a watch on tradesResetCooldownMs) on purpose:
-// userData starts out null while it loads, so the cooldown briefly reads as
-// 0 before the real (possibly already-expired) value arrives. A watch only
-// fires on a value *change*, so if the real value is also 0 (cooldown was
-// already over before the page loaded), the callback would never fire again
-// and trades would stay stuck at 0 forever. watchEffect re-runs whenever
-// userData.value or now.value themselves change, regardless of what the
-// computed cooldown resolves to.
 watchEffect(() => {
   if (!userData.value) return;
   const remaining = marketTradesResetCooldownRemainingMs(
@@ -185,7 +163,11 @@ const gladiatorCount = computed(
 );
 
 const sellableGladiators = computed(() =>
-  Object.values(userData.value?.gladiators || {}),
+  Object.values(userData.value?.gladiators || {}).sort(
+    (a, b) =>
+      gladiatorPower(b.stats, b.battlesFought) -
+      gladiatorPower(a.stats, a.battlesFought),
+  ),
 );
 const selectedGladiatorId = ref<string>("");
 

@@ -3,33 +3,33 @@
     <div
       class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
     >
-      <span><i class="bi bi-heart-pulse-fill" /> Infirmary - Level
-        {{ level }}</span>
+      <span
+        ><i class="bi bi-heart-pulse-fill" /> Infirmary - Level
+        {{ level }}</span
+      >
       <div class="d-flex gap-2 flex-wrap">
-        <span class="badge bg-secondary">{{ (healPercent * 100).toFixed(0) }}% max HP / heal</span>
+        <span class="badge bg-secondary"
+          >{{ (healPercent * 100).toFixed(0) }}% max HP / heal</span
+        >
       </div>
     </div>
     <div class="card-body">
-      <p
-        v-if="injuredGladiators.length === 0"
-        class="text-muted"
-      >
+      <p v-if="injuredGladiators.length === 0" class="text-muted">
         No injured gladiators.
       </p>
-      <ul
-        v-else
-        class="list-group mb-2"
-      >
+      <ul v-else class="list-group mb-2">
         <li
           v-for="gladiator in injuredGladiators"
           :key="gladiator.id"
           class="list-group-item bg-dark text-light d-flex justify-content-between align-items-center"
         >
-          <span>{{ gladiator.name }} -
+          <span
+            >{{ gladiator.name }} -
             {{ Math.round(gladiator.stats.hpCurrent) }}/{{
               Math.round(gladiator.stats.hpMax)
             }}
-            HP</span>
+            HP</span
+          >
           <button
             class="btn btn-sm btn-success"
             :disabled="cooldownRemaining(gladiator) > 0 || gold < healCost"
@@ -44,22 +44,21 @@
           </button>
         </li>
       </ul>
-      <BuildingLevelsTable
-        :current-level="level"
-        :rows="levelRows"
-      />
-      <button
-        v-if="!isMaxLevel"
-        class="btn btn-outline-light"
-        :disabled="gold < upgradeCost"
-        @click="upgrade"
-      >
-        Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
-      </button>
-      <span
-        v-else
-        class="badge bg-success"
-      >Max level</span>
+      <BuildingLevelsTable :current-level="level" :rows="levelRows" />
+      <div v-if="mode === 'cloud'" class="d-flex gap-2 mb-3">
+        <button
+          v-if="!isMaxLevel"
+          class="btn btn-outline-light"
+          :disabled="gold < upgradeCost"
+          @click="upgrade"
+        >
+          Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
+        </button>
+        <span v-else class="badge bg-success align-self-center">Max level</span>
+      </div>
+      <span v-else class="btn btn-outline-secondary">
+        Upgrade <span><i class="bi bi-coin" /></span>
+      </span>
     </div>
   </div>
 </template>
@@ -78,9 +77,12 @@ import {
   buildingUpgradeCost,
   isBuildingMaxLevel,
 } from "@/core/game/gameRules";
-import { INFIRMARY_HEAL_COST, MAX_BUILDING_LEVEL } from "@/core/game/constantes";
+import {
+  INFIRMARY_HEAL_COST,
+  MAX_BUILDING_LEVEL,
+} from "@/core/game/constantes";
 
-const { userData, gold, updateUserData } = useGameStore();
+const { userData, gold, updateUserData, mode } = useGameStore();
 
 const level = computed(() => userData.value?.buildings.infirmary.level || 1);
 const healPercent = computed(() => infirmaryHealPercent(level.value));
@@ -96,9 +98,13 @@ const levelRows = computed(() =>
 );
 
 const injuredGladiators = computed(() =>
-  Object.values(userData.value?.gladiators || {}).filter(
-    (gladiator) => gladiator.injured,
-  ).sort((a, b) => gladiatorPower(b.stats, b.battlesFought) - gladiatorPower(a.stats, a.battlesFought)),
+  Object.values(userData.value?.gladiators || {})
+    .filter((gladiator) => gladiator.injured)
+    .sort(
+      (a, b) =>
+        gladiatorPower(b.stats, b.battlesFought) -
+        gladiatorPower(a.stats, a.battlesFought),
+    ),
 );
 
 // Ticks every second so the cooldown countdown stays live in the UI.

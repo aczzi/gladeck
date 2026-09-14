@@ -8,8 +8,10 @@
       class="bg-dark text-light px-3 py-2 rounded-pill shadow-sm border border-info"
     >
       <div class="d-flex align-items-center gap-3">
-        <span><i class="bi bi-trophy-fill" /> RP {{ pveRankPoints }} PvE -
-          {{ pvpRankPoints }} PvP</span>
+        <span v-if="mode == 'cloud'">
+          <i class="bi bi-trophy-fill" /> RP {{ pveRankPoints }} PvE -
+          {{ pvpRankPoints }} PvP
+        </span>
         <span><i class="bi bi-coin" /> {{ gold }} Gold</span>
       </div>
     </div>
@@ -19,7 +21,8 @@
 <script setup lang="ts">
 import { useGameStore } from "@/core/store/gameStore";
 
-const { pveRankPoints, pvpRankPoints, gold, isActiveUser } = useGameStore();
+const { pveRankPoints, pvpRankPoints, gold, isActiveUser, mode } =
+  useGameStore();
 </script>
 
 <style scoped>

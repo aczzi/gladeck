@@ -1,5 +1,6 @@
 import { computed, ComputedRef, getCurrentInstance } from "vue";
 import type { UserData, AdminData } from "@/core/game/types";
+import type { SaveMode } from "@/core/store/index";
 
 // Composable to use the Vuex store
 export function useGameStore() {
@@ -30,6 +31,7 @@ export function useGameStore() {
     () => store.getters.adminData,
   );
   const loaded: ComputedRef<boolean> = computed(() => store.getters.loaded);
+  const mode: ComputedRef<SaveMode> = computed(() => store.getters.mode);
   const isActiveUser: ComputedRef<boolean> = computed(
     () => store.getters.userData?.user_active || false,
   );
@@ -47,8 +49,8 @@ export function useGameStore() {
   const hasPendingChanges: ComputedRef<boolean> = computed(
     () => store.getters.hasPendingChanges,
   );
-  const logout = () => {
-    store.dispatch("logout");
+  const logout = async () => {
+    await store.dispatch("logout");
   };
   const setUser = (user: any | null) => {
     store.commit("SET_USER", user);
@@ -74,6 +76,15 @@ export function useGameStore() {
   const deleteUserData = async () => {
     await store.dispatch("deleteUserData");
   };
+  const startGuestSession = () => {
+    store.dispatch("startGuestSession");
+  };
+  const convertGuestToCloud = async (uid: string) => {
+    await store.dispatch("convertGuestToCloud", uid);
+  };
+  const resetToNone = async () => {
+    await store.dispatch("resetToNone");
+  };
 
   // The only allowed path to persist game state - see CRITICAL note in
   // src/core/store/index.ts. Never write to Firestore directly.
@@ -98,6 +109,7 @@ export function useGameStore() {
     userData,
     adminData,
     loaded,
+    mode,
     isActiveUser,
     error,
     pveRankPoints,
@@ -108,6 +120,9 @@ export function useGameStore() {
     logout,
     setUser,
     deleteUserData,
+    startGuestSession,
+    convertGuestToCloud,
+    resetToNone,
     updateUserData,
     flushUserDataUpdates,
     bindUserData,

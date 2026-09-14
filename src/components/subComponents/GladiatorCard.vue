@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="gladiator-card"
-    :class="tierClass"
-  >
+  <div class="gladiator-card" :class="tierClass">
     <div class="gc-header">
       <div class="gc-name-edit">
         <input
@@ -10,7 +7,7 @@
           class="gc-name-input"
           maxlength="24"
           @keydown="handleNameKeydown"
-        >
+        />
         <button
           v-if="isNameDirty"
           type="button"
@@ -21,9 +18,6 @@
           <i class="bi bi-check-lg" />
         </button>
       </div>
-      <span class="gc-tier-stamp">
-        {{ tierLabel }}
-      </span>
     </div>
 
     <GladiatorStats
@@ -34,17 +28,9 @@
       :luck="gladiator.stats.luck"
     />
 
-    <span
-      class="badge"
-      :class="traitBadgeClass(gladiator.trait)"
-    >
-      <i :class="traitIcon(gladiator.trait)" />
-      {{ traitLabel(gladiator.trait) }}
-    </span>
-
     <div class="gc-ability mt-2">
       <p class="gc-ability-text">
-        Since recruitment:<br>
+        Since recruitment:<br />
         ATK {{ statDelta(gladiator.stats.atk, gladiator.baseStats.atk) }} DEF
         {{ statDelta(gladiator.stats.def, gladiator.baseStats.def) }} LUCK
         {{ statDelta(gladiator.stats.luck, gladiator.baseStats.luck) }} Max HP
@@ -52,21 +38,26 @@
       </p>
     </div>
 
-    <div
-      class="btn-group btn-group-sm w-100 me-2 mt-2"
-      role="group"
-      aria-label="Gladiator actions"
+    <button
+      v-if="canRetire"
+      type="button"
+      class="btn btn-outline-danger"
+      @click="$emit('retire')"
     >
-      <button
-        v-if="canRetire"
-        type="button"
-        class="btn btn-outline-danger"
-        @click="$emit('retire')"
-      >
-        <i class="bi bi-flag" /> Retire
-      </button>
-    </div>
-    <div class="gc-footer">
+      <i class="bi bi-flag" /> Retire
+    </button>
+
+    <span class="badge" :class="traitBadgeClass(gladiator.trait)">
+      <i :class="traitIcon(gladiator.trait)" />
+      {{ traitLabel(gladiator.trait) }}
+    </span>
+
+    <div
+      class="d-flex justify-content-between align-items-center flex-wrap gap-2"
+    >
+      <span class="gc-tier-stamp">
+        {{ tierLabel }}
+      </span>
       <span class="gc-battles">
         <i class="bi bi-award" /> {{ gladiator.battlesFought }} won
         <i class="bi bi-lightning" /> {{ props.gladiator.power }}

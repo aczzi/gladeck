@@ -1,25 +1,9 @@
 <template>
-  <div
-    class="gladiator-card squad-slot"
-    :class="cardThemeClass"
-  >
+  <div class="gladiator-card squad-slot" :class="cardThemeClass">
     <div class="gc-header">
-      <span
-        v-if="inSquad"
-        class="squad-slot__position"
-      >#{{ position }}</span>
+      <span v-if="inSquad" class="squad-slot__position">#{{ position }}</span>
       <span class="squad-slot__name">{{ gladiator.name }}</span>
-      <span
-        class="badge"
-        :class="traitBadgeClass(gladiator.trait)"
-      >
-        <i :class="traitIcon(gladiator.trait)" />
-        {{ traitLabel(gladiator.trait) }}
-      </span>
-      <span
-        v-if="!inSquad"
-        class="gc-tier-stamp"
-      >
+      <span v-if="!inSquad" class="gc-tier-stamp">
         {{ tierLabel }}
       </span>
       <button
@@ -48,18 +32,18 @@
       <button
         type="button"
         class="btn"
-        :class="role === 'dps' ? 'btn-primary' : 'btn-outline-primary'"
-        @click="$emit('select-role', 'dps')"
-      >
-        <i class="bi bi-lightning-charge-fill" /> DPS
-      </button>
-      <button
-        type="button"
-        class="btn"
         :class="role === 'tank' ? 'btn-info' : 'btn-outline-info'"
         @click="$emit('select-role', 'tank')"
       >
         <i class="bi bi-shield-fill" /> Tank
+      </button>
+      <button
+        type="button"
+        class="btn"
+        :class="role === 'dps' ? 'btn-primary' : 'btn-outline-primary'"
+        @click="$emit('select-role', 'dps')"
+      >
+        <i class="bi bi-lightning-charge-fill" /> DPS
       </button>
       <button
         type="button"
@@ -79,6 +63,19 @@
     >
       <i class="bi bi-plus-circle" /> Add to squad
     </button>
+
+    <div
+      class="d-flex justify-content-between align-items-center flex-wrap gap-2"
+    >
+      <span class="badge" :class="traitBadgeClass(gladiator.trait)">
+        <i :class="traitIcon(gladiator.trait)" />
+        {{ traitLabel(gladiator.trait) }}
+      </span>
+      <span class="gc-battles">
+        <i class="bi bi-award" /> {{ gladiator.battlesFought }} won
+        <i class="bi bi-lightning" /> {{ power }}
+      </span>
+    </div>
   </div>
 </template>
 

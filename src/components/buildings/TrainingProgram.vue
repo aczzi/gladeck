@@ -3,25 +3,24 @@
     <div
       class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
     >
-      <span><i class="bi bi-mortarboard-fill" /> Training Program - Level
-        {{ level }}</span>
+      <span
+        ><i class="bi bi-mortarboard-fill" /> Training Program - Level
+        {{ level }}</span
+      >
       <span class="badge bg-secondary">+{{ bonusPercent }}%</span>
     </div>
     <div class="card-body">
       <div class="row g-2 align-items-end mb-2">
         <div class="col-auto">
           <label class="form-label">Gladiator</label>
-          <select
-            v-model="selectedGladiatorId"
-            class="form-select"
-          >
+          <select v-model="selectedGladiatorId" class="form-select">
             <option
               v-for="gladiator in gladiators"
               :key="gladiator.id"
               :value="gladiator.id"
               :disabled="
                 cooldownRemaining(gladiator) > 0 ||
-                  !canAffordTrainingProgramUpgrade(gladiator)
+                !canAffordTrainingProgramUpgrade(gladiator)
               "
             >
               {{ gladiator.name }} ({{ getTrainingPoints(gladiator) }} training
@@ -37,16 +36,9 @@
         </div>
         <div class="col-auto">
           <label class="form-label">Stat</label>
-          <select
-            v-model="selectedStat"
-            class="form-select"
-          >
-            <option value="atk">
-              Attack
-            </option>
-            <option value="def">
-              Defense
-            </option>
+          <select v-model="selectedStat" class="form-select">
+            <option value="atk">Attack</option>
+            <option value="def">Defense</option>
           </select>
         </div>
         <div class="col-auto">
@@ -54,9 +46,9 @@
             class="btn btn-outline-primary"
             :disabled="
               !selectedGladiatorId ||
-                gold < upgradeGladiatorCost ||
-                selectedGladiatorCooldown > 0 ||
-                !selectedGladiatorCanAfford
+              gold < upgradeGladiatorCost ||
+              selectedGladiatorCooldown > 0 ||
+              !selectedGladiatorCanAfford
             "
             @click="upgradeGladiator"
           >
@@ -71,22 +63,21 @@
           </button>
         </div>
       </div>
-      <BuildingLevelsTable
-        :current-level="level"
-        :rows="levelRows"
-      />
-      <button
-        v-if="!isMaxLevel"
-        class="btn btn-outline-light"
-        :disabled="gold < upgradeCost"
-        @click="upgradeTrainingProgram"
-      >
-        Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
-      </button>
-      <span
-        v-else
-        class="badge bg-success"
-      >Max level</span>
+      <BuildingLevelsTable :current-level="level" :rows="levelRows" />
+      <div v-if="mode === 'cloud'" class="d-flex gap-2 mb-3">
+        <button
+          v-if="!isMaxLevel"
+          class="btn btn-outline-light"
+          :disabled="gold < upgradeCost"
+          @click="upgrade"
+        >
+          Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
+        </button>
+        <span v-else class="badge bg-success align-self-center">Max level</span>
+      </div>
+      <span v-else class="btn btn-outline-secondary">
+        Upgrade <span><i class="bi bi-coin" /></span>
+      </span>
     </div>
   </div>
 </template>
@@ -116,7 +107,7 @@ import {
 } from "@/core/game/constantes";
 import type { Gladiator } from "@/core/game/types";
 
-const { userData, gold, updateUserData } = useGameStore();
+const { userData, gold, updateUserData, mode } = useGameStore();
 
 const level = computed(
   () => userData.value?.buildings.trainingProgram.level || 1,
@@ -133,7 +124,11 @@ const levelRows = computed(() =>
 );
 
 const gladiators = computed(() =>
-  Object.values(userData.value?.gladiators || {}).sort((a, b) => gladiatorPower(b.stats, b.battlesFought) - gladiatorPower(a.stats, a.battlesFought)),
+  Object.values(userData.value?.gladiators || {}).sort(
+    (a, b) =>
+      gladiatorPower(b.stats, b.battlesFought) -
+      gladiatorPower(a.stats, a.battlesFought),
+  ),
 );
 const selectedGladiatorId = ref<string>("");
 const selectedStat = ref<TrainingProgramTrainableStat>("atk");
@@ -243,7 +238,7 @@ const upgradeGladiator = () => {
   );
 };
 
-const upgradeTrainingProgram = () => {
+const upgrade = () => {
   if (!userData.value || gold.value < upgradeCost.value || isMaxLevel.value)
     return;
   // No RNG and no state to lock in here - gold and level move together in

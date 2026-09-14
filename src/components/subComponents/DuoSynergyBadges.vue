@@ -1,14 +1,11 @@
 <template>
-  <div
-    v-if="synergies.length > 0"
-    class="duo-synergy-list"
-  >
+  <div v-if="synergies.length > 0" class="duo-synergy-list">
     <div
       v-for="synergy in synergies"
       :key="synergy.id"
       class="duo-synergy-item"
     >
-      <span class="badge bg-info text-dark duo-synergy-item__label">
+      <span class="badge bg-light text-dark duo-synergy-item__label">
         <i class="bi bi-stars" /> {{ synergy.label }}
       </span>
       <span class="duo-synergy-item__desc">{{ synergy.description }}</span>
@@ -18,11 +15,6 @@
 
 <script setup lang="ts">
 import type { DuoSynergyMatch } from "@/core/game/types";
-
-// A synergy badge is never just a name - the description travels with it
-// everywhere this renders, so the player never has to go look up what
-// "Bodyguard" or "Shield Wall" actually does (see ROADMAP.md Axe B's own
-// readability warning).
 defineProps<{
   synergies: DuoSynergyMatch[];
 }>();
@@ -50,7 +42,7 @@ defineProps<{
 
 .duo-synergy-item__desc {
   font-size: 0.75rem;
-  color: #cbb9a0;
+  color: #ffffff;
   text-align: left;
 }
 

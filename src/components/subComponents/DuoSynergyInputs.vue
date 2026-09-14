@@ -1,19 +1,10 @@
 <template>
   <span class="duo-synergy-inputs">
-    <span
-      v-for="(slot, index) in slots"
-      :key="index"
-    >
-      <span
-        v-if="index > 0"
-        class="m-2"
-      >
+    <span v-for="(slot, index) in slots" :key="index">
+      <span v-if="index > 0" class="m-2">
         <i class="bi bi-plus" />
       </span>
-      <span
-        class="badge"
-        :class="traitBadgeClass(slot.trait)"
-      >
+      <span class="badge" :class="traitBadgeClass(slot.trait)">
         <i :class="traitIcon(slot.trait)" />
       </span>
       <span

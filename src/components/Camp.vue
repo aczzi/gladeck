@@ -1,9 +1,6 @@
 <template>
   <div class="container-fluid py-3">
-    <Arena
-      v-if="showArenaModal"
-      @close="showArenaModal = false"
-    />
+    <Arena v-if="showArenaModal" @close="showArenaModal = false" />
     <div class="row">
       <div class="col-md-6">
         <Market />
@@ -21,10 +18,7 @@
         </button>
         <Barracks />
         <div class="text-center mt-3">
-          <p
-            v-if="!hasGladiators"
-            class="alert alert-warning"
-          >
+          <p v-if="!hasGladiators" class="alert alert-warning">
             Recruit at least one gladiator at the Camp before you can fight.
           </p>
         </div>

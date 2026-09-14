@@ -1,13 +1,6 @@
 <template>
-  <div
-    class="modal fade show d-block"
-    tabindex="-1"
-    @click="closeOnBackdrop"
-  >
-    <div
-      class="modal-dialog modal-fullscreen"
-      @click.stop
-    >
+  <div class="modal fade show d-block" tabindex="-1" @click="closeOnBackdrop">
+    <div class="modal-dialog modal-fullscreen" @click.stop>
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">
@@ -23,10 +16,7 @@
         <div class="modal-body">
           <!-- Step 0: build squad - pick gladiators and set each one's role
                in the same screen (ROADMAP.md Axe A/B). -->
-          <div
-            v-if="!result"
-            class="row justify-content-center"
-          >
+          <div v-if="!result" class="row justify-content-center">
             <div class="col-md-10">
               <h5 class="text-center">
                 Build your squad ({{ squadGladiators.length }}/{{
@@ -64,11 +54,10 @@
                         (role: Attribution) => setPlacement(gladiatorId!, role)
                       "
                     />
-                    <div
-                      v-else
-                      class="gladiator-card squad-slot-empty"
-                    >
-                      <span class="squad-slot-empty__position">#{{ index + 1 }}</span>
+                    <div v-else class="gladiator-card squad-slot-empty">
+                      <span class="squad-slot-empty__position"
+                        >#{{ index + 1 }}</span
+                      >
                     </div>
                   </div>
                 </div>
@@ -115,10 +104,7 @@
                     />
                   </button>
                 </div>
-                <div
-                  class="collapse"
-                  :class="{ show: showSynergyReference }"
-                >
+                <div class="collapse" :class="{ show: showSynergyReference }">
                   <div class="row g-3 mb-3">
                     <div
                       v-for="synergy in DUO_SYNERGIES"
@@ -144,10 +130,7 @@
               </div>
 
               <div class="text-center mb-4">
-                <label
-                  for="betInput"
-                  class="form-label"
-                >
+                <label for="betInput" class="form-label">
                   Gold wager - win to double it back (max {{ maxBet }})
                 </label>
                 <div
@@ -162,8 +145,10 @@
                     min="0"
                     :max="Math.min(gold, maxBet)"
                     @change="clampBet"
+                  />
+                  <span class="input-group-text"
+                    >/ {{ Math.min(gold, maxBet) }} gold</span
                   >
-                  <span class="input-group-text">/ {{ Math.min(gold, maxBet) }} gold</span>
                 </div>
                 <button
                   class="btn btn-danger btn-lg"
@@ -172,22 +157,14 @@
                 >
                   <i class="bi bi-lightning-fill" /> Engage
                 </button>
-                <p
-                  v-if="!placementValid"
-                  class="text-muted mt-2"
-                >
+                <p v-if="!placementValid" class="text-muted mt-2">
                   {{ placementHint }}
                 </p>
               </div>
 
-              <hr>
-              <h6 class="text-center text-muted">
-                Roster
-              </h6>
-              <p
-                v-if="roster.length === 0"
-                class="text-center text-muted"
-              >
+              <hr />
+              <h6 class="text-center text-muted">Roster</h6>
+              <p v-if="roster.length === 0" class="text-center text-muted">
                 No gladiators available.
               </p>
               <p
@@ -196,10 +173,7 @@
               >
                 Everyone available is already in your squad.
               </p>
-              <div
-                v-else
-                class="row g-2"
-              >
+              <div v-else class="row g-2">
                 <div
                   v-for="gladiator in availableRoster"
                   :key="gladiator.id"
@@ -217,19 +191,15 @@
           </div>
 
           <!-- Step 1: battlefield + result -->
-          <div
-            v-else
-            class="container-fluid"
-          >
+          <div v-else class="container-fluid">
             <p class="text-center text-muted mb-2">
               Round {{ currentRound }} / {{ MAX_COMBAT_ROUNDS }}
             </p>
             <DuoSynergyBadges :synergies="result.activeDuoSynergies" />
+            
             <div class="row justify-content-center align-items-start g-4">
               <div class="col-auto">
-                <h6 class="text-center text-primary">
-                  Your Team
-                </h6>
+                <h6 class="text-center text-primary">Your Team</h6>
                 <div class="d-flex flex-wrap gap-2 justify-content-center">
                   <CombatCard
                     v-for="unit in combatTrainerUnits"
@@ -253,17 +223,12 @@
                 class="col-auto d-flex flex-column align-items-center justify-content-center"
               >
                 <span class="display-6 text-muted d-none d-md-inline">VS</span>
-                <span
-                  class="badge mt-1"
-                  :class="difficultyBadgeClass"
-                >
+                <span class="badge mt-1" :class="difficultyBadgeClass">
                   <i class="bi bi-bar-chart-fill" /> {{ difficultyLabel }}
                 </span>
               </div>
               <div class="col-auto">
-                <h6 class="text-center text-danger">
-                  Rival Team
-                </h6>
+                <h6 class="text-center text-danger">Rival Team</h6>
                 <div class="d-flex flex-wrap gap-2 justify-content-center">
                   <CombatCard
                     v-for="unit in combatRivalUnits"
@@ -344,10 +309,7 @@
                         Total: +{{ totalGoldGained }} gold
                       </li>
                     </ul>
-                    <p
-                      v-else-if="lastBet > 0"
-                      class="mb-0 text-danger"
-                    >
+                    <p v-else-if="lastBet > 0" class="mb-0 text-danger">
                       <i class="bi bi-coin" /> Wager lost: -{{ lastBet }} gold
                     </p>
                     <p
@@ -359,13 +321,8 @@
                     </p>
                   </div>
                 </div>
-                <div
-                  v-if="displayedLog.length > 0"
-                  class="text-start mb-3"
-                >
-                  <h6 class="text-center">
-                    Combat log
-                  </h6>
+                <div v-if="displayedLog.length > 0" class="text-start mb-3">
+                  <h6 class="text-center">Combat log</h6>
                   <ul
                     class="list-group"
                     style="max-height: 220px; overflow-y: auto"
@@ -392,27 +349,28 @@
                         <template v-else>
                           hits {{ entry.targetName }} for
                           {{ Math.round(entry.damage) }} dmg
-                          <span
-                            v-if="entry.crit"
-                            class="text-warning"
-                          >(crit!)</span>
-                          <span
-                            v-if="entry.survivedLethal"
-                            class="text-info"
+                          <span v-if="entry.crit" class="text-warning"
+                            >(crit!)</span
                           >
-                            - clings on!</span>
+                          <span v-if="entry.survivedLethal" class="text-info">
+                            - clings on!</span
+                          >
                           <span
                             v-else-if="entry.targetDowned"
                             class="text-danger"
-                          >- knocked down</span>
+                            >- knocked down</span
+                          >
                           <span
                             v-if="entry.bloodthirstyTriggered"
                             class="text-danger"
                           >
-                            <i class="bi bi-droplet-fill" /> frenzy!</span>
+                            <i class="bi bi-droplet-fill" /> frenzy!</span
+                          >
                         </template>
                       </span>
-                      <span class="text-muted">HP left: {{ Math.round(entry.targetHpAfter) }}</span>
+                      <span class="text-muted"
+                        >HP left: {{ Math.round(entry.targetHpAfter) }}</span
+                      >
                     </li>
                   </ul>
                 </div>
@@ -454,6 +412,7 @@ import {
   distributeRivalBudget,
   resolveCombat,
   applyExperienceGain,
+  gladiatorPower,
   getTrainingPoints,
   isValidTeamComposition,
   computeArenaWagerNetGold,
@@ -487,11 +446,14 @@ const closeOnBackdrop = (event: Event) => {
 
 const { userData, gold, updateUserData } = useGameStore();
 
-// Squad-building state - the whole roster is eligible, the player picks who
-// goes and sets each one's role right on its card (ROADMAP.md Axe A/B:
-// replaces the old random draw + separate placement screen with one
-// continuous squad-building step).
-const roster = computed(() => Object.values(userData.value?.gladiators || {}));
+const roster = computed(() =>
+  Object.values(userData.value?.gladiators || {}).sort(
+    (a, b) =>
+      gladiatorPower(b.stats, b.battlesFought) -
+      gladiatorPower(a.stats, a.battlesFought),
+  ),
+);
+
 const gladiatorsById = computed(() => userData.value?.gladiators || {});
 const placement = ref<Record<string, Attribution | null>>({});
 const bet = ref(0);
@@ -509,16 +471,13 @@ const squadGladiators = computed(() =>
     .map((id) => gladiatorsById.value[id])
     .filter((g): g is Gladiator => !!g),
 );
+
 const availableRoster = computed(() =>
   roster.value.filter((g) => !squadSlots.value.includes(g.id)),
 );
 
 const result = ref<CombatResult | null>(null);
 
-// Persists the in-progress squad build so it survives a reload. Stored as a
-// compact ordered list (no gaps) - exact slot *positions* don't need to
-// survive a reload, only the relative order, so a reload simply repacks any
-// empty slots to the front on rehydration below.
 const persistPendingCombat = () => {
   if (!userData.value || squadGladiators.value.length === 0 || result.value) {
     return;
@@ -532,9 +491,6 @@ const persistPendingCombat = () => {
   });
 };
 
-// Adds a gladiator to the first empty slot, or clears whichever slot it's
-// currently in - used both by the roster grid's "Add to squad" and by a
-// squad slot's own remove button.
 const toggleSelected = (gladiatorId: string) => {
   const existingIndex = squadSlots.value.indexOf(gladiatorId);
   const nextPlacement = { ...placement.value };

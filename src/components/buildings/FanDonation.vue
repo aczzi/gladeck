@@ -3,17 +3,18 @@
     <div
       class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
     >
-      <span><i class="bi bi-gift-fill" /> Fan donation - Level {{ level }}</span>
-      <span class="badge bg-secondary">{{ goldPerDay.toFixed(0) }} gold / day</span>
+      <span
+        ><i class="bi bi-gift-fill" /> Fan donation - Level {{ level }}</span
+      >
+      <span class="badge bg-secondary"
+        >{{ goldPerDay.toFixed(0) }} gold / day</span
+      >
     </div>
     <div class="card-body">
       <p class="card-text">
         <strong>{{ pendingGold }}</strong> gold to collect.
       </p>
-      <p
-        v-if="legacyPoints > 0"
-        class="text-muted small"
-      >
+      <p v-if="legacyPoints > 0" class="text-muted small">
         <i class="bi bi-award-fill" /> {{ legacyPoints }} retired legend{{
           legacyPoints > 1 ? "s" : ""
         }}
@@ -28,11 +29,8 @@
           <i class="bi bi-download" /> Collect
         </button>
       </div>
-      <BuildingLevelsTable
-        :current-level="level"
-        :rows="levelRows"
-      />
-      <div class="d-flex gap-2 mb-3">
+      <BuildingLevelsTable :current-level="level" :rows="levelRows" />
+      <div v-if="mode === 'cloud'" class="d-flex gap-2 mb-3">
         <button
           v-if="!isMaxLevel"
           class="btn btn-outline-light"
@@ -41,11 +39,11 @@
         >
           Upgrade <span><i class="bi bi-coin" /> {{ upgradeCost }}</span>
         </button>
-        <span
-          v-else
-          class="badge bg-success align-self-center"
-        >Max level</span>
+        <span v-else class="badge bg-success align-self-center">Max level</span>
       </div>
+      <span v-else class="btn btn-outline-secondary">
+        Upgrade <span><i class="bi bi-coin" /></span>
+      </span>
     </div>
   </div>
 </template>
@@ -63,9 +61,9 @@ import {
   LEGACY_BONUS_PERCENT_PER_RETIREE,
 } from "@/core/game/gameRules";
 
-import { MAX_BUILDING_LEVEL }  from "@/core/game/constantes";
+import { MAX_BUILDING_LEVEL } from "@/core/game/constantes";
 
-const { userData, gold, updateUserData } = useGameStore();
+const { userData, gold, updateUserData, mode } = useGameStore();
 
 const level = computed(() => userData.value?.buildings.fanDonation.level || 1);
 const lastCollected = computed(

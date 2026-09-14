@@ -754,13 +754,13 @@ export function resolveCombat(
 }
 // ====== §6 Buildings & economy ======
 
-
 export function fanDonationGoldPerDay(
   level: number,
   legacyPoints: number = 0,
 ): number {
-  const baseGold = FAN_DONATION_BASE_GOLD_PER_DAY * level ;
-  const legacyMultiplier =1 + (LEGACY_BONUS_PERCENT_PER_RETIREE * legacyPoints) / 100;
+  const baseGold = FAN_DONATION_BASE_GOLD_PER_DAY * level;
+  const legacyMultiplier =
+    1 + (LEGACY_BONUS_PERCENT_PER_RETIREE * legacyPoints) / 100;
   return baseGold * legacyMultiplier;
 }
 
@@ -1023,17 +1023,18 @@ export function generateRandomGladiatorStats(
   };
 }
 
-export function generateGladiatorName(stats: GladiatorStats, id: string): string {
+export function generateGladiatorName(
+  stats: GladiatorStats,
+  id: string,
+): string {
   let root = "S";
-  if (stats.atk > stats.def)  root = "D";
-  if (stats.def > stats.atk)  root = "T";
+  if (stats.atk > stats.def) root = "D";
+  if (stats.def > stats.atk) root = "T";
   return `${root}#${id}`;
 }
 
-export function createGladiator(
-  rng: RngFn = Math.random,
-): Gladiator {
-  const id = `${1000000 + uniformRandInt(9000000, rng)}`
+export function createGladiator(rng: RngFn = Math.random): Gladiator {
+  const id = `${1000000 + uniformRandInt(9000000, rng)}`;
   const stats = generateRandomGladiatorStats(rng);
   const name = generateGladiatorName(stats, id);
   return {
@@ -1069,28 +1070,32 @@ export function canRetireGladiator(gladiator: Gladiator): boolean {
 
 // ====== Starting data ======
 
-export const startBuildings: Buildings = {
-  fanDonation: {
-    level: 1,
-    lastCollected: Timestamp.now(),
-  },
-  barracks: {},
-  trainingProgram: { level: 1 },
-  infirmary: { level: 1 },
-  market: {
-    level: 1,
-    tradesLeftThisHour: marketTradesPerHour(1),
-    lastTradeReset: Timestamp.now(),
-  },
-};
+function buildStartBuildings(): Buildings {
+  return {
+    fanDonation: {
+      level: 1,
+      lastCollected: Timestamp.now(),
+    },
+    barracks: {},
+    trainingProgram: { level: 1 },
+    infirmary: { level: 1 },
+    market: {
+      level: 1,
+      tradesLeftThisHour: marketTradesPerHour(1),
+      lastTradeReset: Timestamp.now(),
+    },
+  };
+}
 
-export const startProfile: Profile = {
-  username: `Trainer${uniformRandInt(1000) + 1}`,
-  pveRankPoints: 0,
-  pvpRankPoints: 0,
-  gold: 200,
-  legacyPoints: 0,
-};
+function buildStartProfile(): Profile {
+  return {
+    username: `Trainer${uniformRandInt(1000) + 1}`,
+    pveRankPoints: 0,
+    pvpRankPoints: 0,
+    gold: 200,
+    legacyPoints: 0,
+  };
+}
 
 function buildStartGladiators(): Record<string, Gladiator> {
   const gladiators: Record<string, Gladiator> = {};
@@ -1101,12 +1106,17 @@ function buildStartGladiators(): Record<string, Gladiator> {
   return gladiators;
 }
 
-export const startUserData: UserData = {
-  profile: startProfile,
-  buildings: startBuildings,
-  gladiators: buildStartGladiators(),
-  user_active: true,
-  session: {
-    currentSession: null,
-  },
-};
+// A fresh save, built anew on every call - each new account/guest session
+// gets its own gladiators/username/timestamps rather than everyone sharing
+// one module-level object for the life of the page.
+export function buildStartUserData(): UserData {
+  return {
+    profile: buildStartProfile(),
+    buildings: buildStartBuildings(),
+    gladiators: buildStartGladiators(),
+    user_active: true,
+    session: {
+      currentSession: null,
+    },
+  };
+}

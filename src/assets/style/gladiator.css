@@ -22,10 +22,7 @@
 
 .gladiator-card:hover {
   transform: translateY(-6px);
-  box-shadow:
-    0 0 0 1px var(--tier-glow) inset,
-    0 8px 20px var(--tier-glow),
-    0 0 22px var(--tier-glow);
+  border: 2px solid var(--tier-color);
 }
 
 .gladiator-card.tier-rookie {
@@ -230,11 +227,6 @@
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.gc-footer {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .gc-battles {

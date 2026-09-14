@@ -7,18 +7,10 @@
     tabindex="-1"
     @click="closeHowToPlayModalOnBackdrop"
   >
-    <div
-      class="modal-dialog modal-xl"
-      @click.stop
-    >
+    <div class="modal-dialog modal-xl" @click.stop>
       <div class="modal-content">
         <div class="modal-header">
-          <h5
-            id="howToPlay"
-            class="modal-title"
-          >
-            Gladeck
-          </h5>
+          <h5 id="howToPlay" class="modal-title">Gladeck</h5>
           <button
             type="button"
             class="btn-close btn-close-white"
@@ -43,6 +35,19 @@
       }
     "
   />
+  <!-- Guest -> account conflict (global) -->
+  <GuestConflictModal
+    :show="showGuestConflictModal"
+    :guest-user-data="userData"
+    @keep-cloud="resolveGuestConflictKeepCloud"
+    @keep-local="resolveGuestConflictKeepLocal"
+  />
+  <!-- Guest logout confirmation (global) -->
+  <GuestLogoutModal
+    :show="showGuestLogoutModal"
+    @confirm="confirmGuestLogout"
+    @cancel="cancelGuestLogout"
+  />
   <!-- Error Alert -->
   <div
     v-if="error"
@@ -51,10 +56,7 @@
   >
     <div class="row justify-content-center">
       <div class="col-md-8">
-        <div
-          class="alert alert-danger shadow-lg"
-          role="alert"
-        >
+        <div class="alert alert-danger shadow-lg" role="alert">
           <h4 class="alert-heading">
             <i class="bi bi-exclamation-triangle-fill" />
             Access Restricted
@@ -71,29 +73,19 @@
     style="min-height: 50vh"
   >
     <div class="text-center">
-      <div
-        class="spinner-border text-primary"
-        role="status"
-      >
+      <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading...</span>
       </div>
-      <p class="mt-2">
-        Loading game data...
-      </p>
+      <p class="mt-2">Loading game data...</p>
     </div>
   </div>
   <!-- Connected to Firebase -->
   <template v-if="loaded">
     <template v-if="adminData">
       <!-- Game is deactivated -->
-      <div
-        v-if="!adminData.active_game"
-        class="container-fluid bg"
-      >
+      <div v-if="!adminData.active_game" class="container-fluid bg">
         <div class="welcome">
-          <h1 class="gladiator">
-            Gladeck
-          </h1>
+          <h1 class="gladiator">Gladeck</h1>
           <h3>The game is currently deactivated</h3>
           <p>{{ adminData.message }}</p>
         </div>
@@ -101,22 +93,14 @@
       <!-- Game is activated -->
       <template v-if="adminData.active_game">
         <!-- Login page -->
-        <div
-          v-if="userData === null"
-          class="container-fluid bg"
-        >
+        <div v-if="userData === null" class="container-fluid bg">
           <div class="welcome">
-            <h1 class="gladiator">
-              Gladeck
-            </h1>
+            <h1 class="gladiator">Gladeck</h1>
             <p>This game needs a user account to save progress.</p>
             <div
               class="d-flex flex-column flex-md-row gap-2 justify-content-center"
             >
-              <button
-                class="btn btn-outline-light btn-lg"
-                @click="logIn()"
-              >
+              <button class="btn btn-outline-light btn-lg" @click="logIn()">
                 <i class="bi bi-google" /> Google
               </button>
               <button
@@ -125,16 +109,23 @@
               >
                 <i class="bi bi-envelope-fill" /> Email
               </button>
+              <button
+                class="btn btn-outline-primary btn-lg"
+                type="button"
+                @click="startGuestSession"
+              >
+                Play without account
+              </button>
             </div>
-            <br>
+            <br />
             <a
               class="btn btn-outline-light btn-lg"
               @click="showHowToPlayModal = true"
             >
               <i class="bi bi-question-circle" /> What is this game about?
             </a>
-            <br>
-            <br>
+            <br />
+            <br />
             <h5>2026</h5>
           </div>
         </div>
@@ -147,22 +138,17 @@
             style="min-height: 50vh"
           >
             <div class="text-center">
-              <div
-                class="spinner-border text-danger"
-                role="status"
-              >
+              <div class="spinner-border text-danger" role="status">
                 <span class="visually-hidden">Loading...</span>
               </div>
-              <p class="mt-2">
-                This account is not active.
-              </p>
+              <p class="mt-2">This account is not active.</p>
             </div>
           </div>
           <!-- User game -->
           <template v-if="isActiveUser">
             <nav class="navbar navbar-dark bg-info navbar-expand-lg sticky-top">
               <div class="container-fluid">
-                <span class="navbar-brand gladiator"> Gladeck </span>
+                <span class="navbar-brand gladiator">Gladeck</span>
                 <button
                   class="navbar-toggler"
                   type="button"
@@ -174,18 +160,19 @@
                 >
                   <span class="navbar-toggler-icon" />
                 </button>
-                <div
-                  id="navbarNav"
-                  class="collapse navbar-collapse"
-                >
+                <div id="navbarNav" class="collapse navbar-collapse">
                   <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
                       <a
+                        v-if="mode === 'cloud'"
                         class="nav-link btn"
                         @click="showLeaderboardModal = true"
                       >
                         <i class="bi bi-trophy-fill" /> Leaderboard
                       </a>
+                      <span v-else class="nav-link btn btn-warning" deactivate>
+                        <i class="bi bi-trophy-fill" /> Leaderboard
+                      </span>
                     </li>
                     <li class="nav-item">
                       <a
@@ -195,33 +182,21 @@
                         <i class="bi bi-question-circle-fill" /> How to play
                       </a>
                     </li>
-                    <li class="nav-item">
-                      <a
-                        class="nav-link btn"
-                        @click="showUserModal = true"
-                      >
+                    <li v-if="mode === 'cloud'" class="nav-item">
+                      <a class="nav-link btn" @click="showUserModal = true">
                         <i class="bi bi-person-circle" /> Account
                       </a>
                     </li>
-                    <li class="nav-item">
-                      <a
-                        class="nav-link btn"
-                        @click="forceSave()"
-                      >
-                        <i
-                          v-if="isSaving"
-                          class="bi bi-check-circle"
-                        />
-                        <i
-                          v-else
-                          class="bi bi-floppy2"
-                        />
+                    <li v-if="mode === 'cloud'" class="nav-item">
+                      <a class="nav-link btn" @click="forceSave()">
+                        <i v-if="isSaving" class="bi bi-check-circle" />
+                        <i v-else class="bi bi-floppy2" />
                       </a>
                     </li>
                     <li class="nav-item">
                       <a
                         class="nav-link btn btn-danger"
-                        @click="handleLogout()"
+                        @click="onLogoutClick()"
                       >
                         <i class="bi bi-box-arrow-right" />
                       </a>
@@ -230,6 +205,11 @@
                 </div>
               </div>
             </nav>
+            <GuestBanner
+              v-if="mode === 'guest'"
+              @create-account-google="logIn"
+              @create-account-email="showEmailModal = true"
+            />
             <TopInfo />
             <!-- Leaderboard Modal -->
             <div
@@ -242,16 +222,10 @@
               tabindex="-1"
               @click="closeLeaderboardModalOnBackdrop"
             >
-              <div
-                class="modal-dialog modal-xl"
-                @click.stop
-              >
+              <div class="modal-dialog modal-xl" @click.stop>
                 <div class="modal-content">
                   <div class="modal-header">
-                    <h5
-                      id="leaderboardModalLabel"
-                      class="modal-title"
-                    >
+                    <h5 id="leaderboardModalLabel" class="modal-title">
                       <i class="bi bi-trophy-fill" />
                       Leaderboard
                     </h5>
@@ -276,16 +250,10 @@
               tabindex="-1"
               @click="closeUserModalOnBackdrop"
             >
-              <div
-                class="modal-dialog modal-xl"
-                @click.stop
-              >
+              <div class="modal-dialog modal-xl" @click.stop>
                 <div class="modal-content">
                   <div class="modal-header">
-                    <h5
-                      id="userModal"
-                      class="modal-title"
-                    >
+                    <h5 id="userModal" class="modal-title">
                       <i class="bi bi-person-circle" />
                       My account
                     </h5>
@@ -309,6 +277,7 @@
     </template>
   </template>
 </template>
+
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -316,11 +285,14 @@ import firebase from "firebase/compat/app";
 import { db } from "@/core/firebase/store";
 
 import TopInfo from "@/components/subComponents/TopInfo.vue";
+import GuestBanner from "@/components/subComponents/GuestBanner.vue";
 import Camp from "@/components/Camp.vue";
 import HowToPlay from "@/components/modals/HowToPlay.vue";
 import Leaderboard from "@/components/modals/Leaderboard.vue";
 import UserInfo from "@/components/modals/UserInfo.vue";
 import EmailLogin from "@/components/modals/EmailLogin.vue";
+import GuestConflictModal from "@/components/modals/GuestConflictModal.vue";
+import GuestLogoutModal from "@/components/modals/GuestLogoutModal.vue";
 import {
   getAuth,
   signInWithPopup,
@@ -341,8 +313,12 @@ import {
 import { isDevelopment } from "@/core/utils";
 import { useGameStore } from "@/core/store/gameStore";
 import { devLog } from "@/core/utils";
-import { startUserData } from "@/core/game/gameRules";
 import { markUserAsNew } from "@/core/store/index";
+import { buildStartUserData } from "@/core/game/gameRules";
+import {
+  hasGuestUserData,
+  clearGuestUserData,
+} from "@/core/store/guestStorage";
 import {
   initializeSession,
   terminateSession,
@@ -364,6 +340,7 @@ const {
   userData,
   adminData,
   loaded,
+  mode,
   error,
   setUser,
   logout,
@@ -374,6 +351,9 @@ const {
   unbindUserData,
   setError,
   flushUserDataUpdates,
+  startGuestSession,
+  convertGuestToCloud,
+  resetToNone,
 } = useGameStore();
 
 const isAuthenticated = computed(() => {
@@ -385,6 +365,9 @@ const showUserModal = ref<boolean>(false);
 const showHowToPlayModal = ref<boolean>(false);
 const showLeaderboardModal = ref<boolean>(false);
 const showEmailModal = ref<boolean>(false);
+const showGuestConflictModal = ref<boolean>(false);
+const pendingConflictUid = ref<string | null>(null);
+const showGuestLogoutModal = ref<boolean>(false);
 
 // Save indicator state
 const isSaving = ref<boolean>(false);
@@ -469,10 +452,9 @@ const createUserIfNotExists = async (uid: string): Promise<boolean> => {
     const userDocSnap = await getDoc(userDocRef);
     if (!userDocSnap.exists()) {
       const isAdminAccessible = await checkAdminAccess();
-
       if (isAdminAccessible) {
         devLog("Creating new user document (admin service accessible):", uid);
-        await setDoc(userDocRef, startUserData);
+        await setDoc(userDocRef, buildStartUserData());
         FirebaseCallTracker.track("write", "setDoc new user");
         devLog("New user created in Firebase:", uid);
 
@@ -496,7 +478,9 @@ const createUserIfNotExists = async (uid: string): Promise<boolean> => {
   }
 };
 
-const handleLogout = async (): Promise<void> => {
+const handleLogout = async (options?: {
+  purgeGuestData?: boolean;
+}): Promise<void> => {
   try {
     isSaving.value = true;
     await flushUserDataUpdates();
@@ -510,11 +494,99 @@ const handleLogout = async (): Promise<void> => {
 
     await unbindUserData();
     await signOut(firebaseAuth);
-    logout();
+    await logout();
+
+    // Guest logout: no Firebase auth state change fires to re-run the
+    // login-screen setup below, so replay it manually. The local guest save
+    // is purged only when the player explicitly confirmed it (see
+    // onLogoutClick/GuestLogoutModal) - never on an automatic/forced logout
+    // (kicked out, game deactivated), where it must survive for next time.
+    if (!user) {
+      if (options?.purgeGuestData) {
+        clearGuestUserData();
+      }
+      await bindAdminData();
+    }
   } catch (error: any) {
     isSaving.value = false;
     console.error("Error signing out:", error);
     setError("Failed to logout");
+  }
+};
+
+// The nav logout button routes through here so a guest can be warned before
+// their only copy of the save is erased; every other caller (kicked out,
+// game deactivated) calls handleLogout() directly and never purges.
+const onLogoutClick = (): void => {
+  if (mode.value === "guest") {
+    showGuestLogoutModal.value = true;
+    return;
+  }
+  void handleLogout();
+};
+
+const confirmGuestLogout = async (): Promise<void> => {
+  showGuestLogoutModal.value = false;
+  await handleLogout({ purgeGuestData: true });
+};
+
+const cancelGuestLogout = (): void => {
+  showGuestLogoutModal.value = false;
+};
+
+const handleKickedOut = async (): Promise<void> => {
+  devLog("Kicked out by another session");
+  setError(
+    "Your account is being used in another window/device. You have been logged out.",
+  );
+  await handleLogout();
+};
+
+// After a successful sign-in while a guest session with an existing cloud
+// save both exist, the player picks which one survives (GuestConflictModal).
+const resolveGuestConflictKeepCloud = async (): Promise<void> => {
+  showGuestConflictModal.value = false;
+  const uid = pendingConflictUid.value;
+  pendingConflictUid.value = null;
+  if (!uid) return;
+
+  try {
+    const isAdminAccessible = await checkAdminAccess();
+    if (isAdminAccessible) {
+      await bindUserData(uid);
+      await initializeSession(uid, handleKickedOut);
+      await syncLeaderboardEntry();
+      // Only drop the local guest save once the cloud one is fully bound -
+      // if any step above fails, the guest save is still the only usable
+      // copy and must not be wiped out from under the player.
+      clearGuestUserData();
+    } else {
+      setError("User data access is temporarily unavailable");
+    }
+  } catch (error: any) {
+    console.error("Failed to load user data", error);
+    setError(error.message || "Failed to load user data");
+  }
+};
+
+const resolveGuestConflictKeepLocal = async (): Promise<void> => {
+  showGuestConflictModal.value = false;
+  const uid = pendingConflictUid.value;
+  pendingConflictUid.value = null;
+  if (!uid) return;
+
+  try {
+    await convertGuestToCloud(uid);
+    await bindUserData(uid);
+    await initializeSession(uid, handleKickedOut);
+    await syncLeaderboardEntry();
+    // Only drop the local guest save once it has been written to Firestore
+    // AND bound back as the cloud save - if bindUserData (or anything after
+    // it) fails, the guest save must survive as the fallback.
+    clearGuestUserData();
+  } catch (error: any) {
+    console.error("Failed to convert guest save", error);
+    setError(error.message || "Failed to save guest progress to the account");
   }
 };
 
@@ -541,7 +613,15 @@ onMounted((): void => {
 
   setupFirebaseTracking();
 
-  const handleBeforeUnload = async () => {
+  const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
+    // Guest progress lives only in this browser's localStorage, with no
+    // cloud back-up - warn before an accidental tab close/navigation. Must
+    // run synchronously, before any await, for the browser to honor it.
+    if (mode.value === "guest") {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
     if (isAuthenticated.value) {
       try {
         isSaving.value = true;
@@ -602,22 +682,36 @@ onMounted((): void => {
       setUser(user);
       setError(null);
       try {
+        // Firebase can restore an authenticated session before our own
+        // guest-conversion flow ever set mode to "guest" in this tab (a
+        // reload mid-conversion, a session shared from another tab, etc).
+        // Sync mode to what's actually on disk first, so the conflict/
+        // conversion checks below - which key off mode.value === "guest" -
+        // see the real local save instead of silently ignoring it.
+        if (mode.value !== "guest" && hasGuestUserData()) {
+          startGuestSession();
+        }
+
         const userDocRef = doc(db, "users", user.uid);
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
+          if (mode.value === "guest") {
+            // Signing into an account that already has its own cloud save
+            // while unsaved guest progress exists on this device - let the
+            // player pick which one to keep before touching either.
+            devLog("Guest signed into an existing account - asking to resolve");
+            pendingConflictUid.value = user.uid;
+            showGuestConflictModal.value = true;
+            return;
+          }
+
           const isAdminAccessible = await checkAdminAccess();
 
           if (isAdminAccessible) {
             devLog("Existing user access granted:", user.uid);
             await bindUserData(user.uid);
-            await initializeSession(user.uid, async () => {
-              devLog("Kicked out by another session");
-              setError(
-                "Your account is being used in another window/device. You have been logged out.",
-              );
-              await handleLogout();
-            });
+            await initializeSession(user.uid, handleKickedOut);
             await syncLeaderboardEntry();
           } else {
             devLog(
@@ -627,6 +721,18 @@ onMounted((): void => {
             setError("User data access is temporarily unavailable");
             return;
           }
+        } else if (mode.value === "guest") {
+          devLog("Converting guest session to new account:", user.uid);
+          await convertGuestToCloud(user.uid);
+          markUserAsNew();
+          await bindUserData(user.uid);
+          await initializeSession(user.uid, handleKickedOut);
+          await syncLeaderboardEntry();
+          // Only drop the local guest save once it has been written to
+          // Firestore AND bound back as the cloud save - if bindUserData (or
+          // anything after it) fails, the guest save must survive as the
+          // fallback.
+          clearGuestUserData();
         } else {
           const isNewUser = await createUserIfNotExists(user.uid);
 
@@ -636,14 +742,7 @@ onMounted((): void => {
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             await bindUserData(user.uid);
-
-            await initializeSession(user.uid, async () => {
-              devLog("Kicked out by another session");
-              setError(
-                "Your account is being used in another window/device. You have been logged out.",
-              );
-              await handleLogout();
-            });
+            await initializeSession(user.uid, handleKickedOut);
             await syncLeaderboardEntry();
           }
         }
@@ -667,6 +766,17 @@ onMounted((): void => {
         );
       }
       setUser(null);
+
+      // Drop any stale "cloud" binding this external sign-out leaves behind
+      // (no-op if we were already "guest"/"none").
+      await resetToNone();
+
+      // No Firebase session, but a guest save exists on this device from an
+      // earlier visit - resume it instead of showing the login screen again.
+      if (mode.value === "none" && hasGuestUserData()) {
+        devLog("Resuming existing guest session");
+        startGuestSession();
+      }
     }
   });
 

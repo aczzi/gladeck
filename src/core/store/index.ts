@@ -11,13 +11,17 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import type { UserData, AdminData } from "@/core/game/types";
-import { gladiatorSellValue } from "@/core/game/gameRules";
+import { gladiatorSellValue, buildStartUserData } from "@/core/game/gameRules";
 import {
   isSessionAlive,
   onSessionInvalidated,
   setUpdateUserDataCallback,
   setFlushBeforeInvalidationCallback,
 } from "@/core/firebase/sessionManager";
+import {
+  saveGuestUserData,
+  loadGuestUserData,
+} from "@/core/store/guestStorage";
 
 // Keep the two listeners independent: binding user data must never orphan the
 // admin listener (and vice versa).
@@ -174,6 +178,20 @@ const resetNewUserFlag = () => {
   }
 };
 
+// mode names the active *write destination* only - it is deliberately
+// orthogonal to Firebase auth state and to gameState.loaded, both of which
+// can transiently disagree with it (e.g. a Firebase user is already set
+// while a guest/cloud conflict is still being resolved; unbindUserData()
+// leaves userData null for a moment while mode is still "cloud"). Never set
+// mode directly from anywhere other than bindUserData/resetToNone/
+// CLEAR_USER_DATA/startGuestSession.
+// "none":  no save loaded. Writes are rejected (see updateUserData).
+// "guest": writes go to localStorage (see updateUserData).
+// "cloud": writes go to Firestore via the accumulator below (see
+//          updateUserData/flushUserDataUpdates). Only ever entered from
+//          bindUserData() once a real snapshot has been bound.
+export type SaveMode = "none" | "guest" | "cloud";
+
 // State interface
 export interface RootState {
   user: any;
@@ -184,6 +202,7 @@ export interface RootState {
   };
   userData: UserData | null;
   adminData: AdminData | null;
+  mode: SaveMode;
 }
 
 const initialState: RootState = {
@@ -195,6 +214,7 @@ const initialState: RootState = {
   },
   userData: null,
   adminData: null,
+  mode: "none",
 };
 
 export default createStore({
@@ -232,9 +252,14 @@ export default createStore({
       state.adminData = adminData;
     },
 
+    SET_MODE(state: RootState, mode: SaveMode) {
+      state.mode = mode;
+    },
+
     CLEAR_USER_DATA(state: RootState) {
       state.user = null;
       state.userData = null;
+      state.mode = "none";
       state.gameState = {
         loaded: false,
         error: null,
@@ -265,6 +290,47 @@ export default createStore({
       });
 
       devLog("Store initialized with all callbacks");
+    },
+
+    // Guest mode: no account, no Firestore call - resume the local save if
+    // one exists, otherwise start a fresh one.
+    startGuestSession({ commit, getters }: any) {
+      if (getters.user) {
+        // Not refused outright: onAuthStateChanged legitimately calls this
+        // to load an orphaned local save into state before deciding on a
+        // conflict/conversion, with the Firebase user already set. Surfaced
+        // only so an unexpected caller (e.g. a stray UI click while a stale
+        // session lingers) is visible in logs.
+        devWarn(
+          "startGuestSession called while a Firebase user is present:",
+          getters.user?.uid,
+        );
+      }
+      const existing = loadGuestUserData();
+      const userData = existing ?? buildStartUserData();
+      if (!existing) {
+        saveGuestUserData(userData);
+      }
+      commit("SET_USERDATA", userData);
+      commit("SET_MODE", "guest");
+      commit("SET_LOADED", true);
+    },
+
+    // Pushes the current in-memory guest save to Firestore as the given
+    // account's document - used both when the account is brand new and when
+    // the player explicitly chooses to overwrite an existing cloud save with
+    // their guest progress. Does NOT touch the local guest copy: it stays as
+    // the fallback until the caller's bind (bindUserData + session setup)
+    // actually succeeds, then the caller clears it as the last step - so a
+    // failure anywhere in that chain leaves the guest save intact instead of
+    // wiped with nothing bound to replace it.
+    async convertGuestToCloud({ getters }: any, uid: string) {
+      const guestUserData = getters.userData as UserData | null;
+      if (!guestUserData) {
+        throw new Error("No guest data to convert");
+      }
+      const userDocRef = doc(db, "users", uid);
+      await setDoc(userDocRef, guestUserData);
     },
 
     async logout({ commit, dispatch }: any) {
@@ -327,7 +393,7 @@ export default createStore({
       });
     },
 
-    bindUserData({ commit }: any, userId: string) {
+    bindUserData({ commit, getters }: any, userId: string) {
       return new Promise((resolve, reject) => {
         try {
           commit("SET_LOADED", false);
@@ -337,10 +403,21 @@ export default createStore({
 
           const userDocRef = doc(db, "users", userId);
 
+          // If the timeout fires first, the caller already treats this bind
+          // as failed (error state, no initializeSession) and moves on. A
+          // snapshot that was already in flight at that exact instant could
+          // otherwise still land afterwards and commit "cloud" behind the
+          // caller's back - unsubscribing stops future events, and this
+          // flag catches that one already-queued-event race.
+          let timedOut = false;
+
           const timeout = setTimeout(() => {
+            timedOut = true;
             devError("Timeout waiting for user data");
             commit("SET_ERROR", "Timeout loading user data");
             commit("SET_LOADED", true);
+            unsubscribeUserData?.();
+            unsubscribeUserData = null;
             reject(new Error("Timeout loading user data"));
           }, 10000);
 
@@ -348,6 +425,22 @@ export default createStore({
             userDocRef,
             (docSnapshot) => {
               clearTimeout(timeout);
+              if (timedOut) return;
+
+              // Guards against a stale listener from an earlier bindUserData
+              // call for a different uid still being in flight when the
+              // user changes underneath it (unsubscribeUserData above
+              // normally prevents this, but a snapshot already queued at
+              // that instant can still land).
+              if (getters.user?.uid !== userId) {
+                devWarn(
+                  "Ignoring stale user data snapshot for",
+                  userId,
+                  "- current user is",
+                  getters.user?.uid,
+                );
+                return;
+              }
 
               if (docSnapshot.exists()) {
                 const userData = docSnapshot.data() as UserData;
@@ -363,6 +456,10 @@ export default createStore({
                     : userData;
                 commit("SET_USERDATA", merged);
                 commit("SET_LOADED", true);
+                // This is the single transition point into "cloud": only
+                // flip once a real snapshot has been bound, never earlier
+                // (see convertGuestToCloud/discardGuestSession).
+                commit("SET_MODE", "cloud");
                 resolve(userData);
               } else {
                 devError("User document does not exist:", userId);
@@ -373,6 +470,7 @@ export default createStore({
             },
             (error) => {
               clearTimeout(timeout);
+              if (timedOut) return;
               devError("Error listening to user data:", error);
               commit("SET_ERROR", "Failed to load user data");
               commit("SET_LOADED", true);
@@ -406,6 +504,17 @@ export default createStore({
       unsubscribeAdminData?.();
       unsubscribeAdminData = null;
       commit("SET_ADMIN_DATA", null);
+    },
+
+    // Firebase itself reports the user signed out outside our own logout()
+    // flow (token expiry/revocation, cleared storage, etc). Tear down the
+    // cloud binding so the app doesn't keep showing "cloud" mode - and the
+    // UI it gates (leaderboard, account, save button) - with no user left to
+    // save under. No-op for "guest"/"none", which have no cloud binding.
+    async resetToNone({ commit, dispatch, getters }: any) {
+      if (getters.mode !== "cloud") return;
+      await dispatch("unbindUserData");
+      commit("SET_MODE", "none");
     },
 
     async syncLeaderboardEntry({ getters }: any) {
@@ -446,6 +555,23 @@ export default createStore({
       { commit, getters }: any,
       partialData: Partial<UserData>,
     ) {
+      const mode = getters.mode as SaveMode;
+
+      if (mode === "guest") {
+        const currentGuestData = getters.userData as UserData | null;
+        const updatedGuestData = currentGuestData
+          ? { ...currentGuestData, ...partialData }
+          : (partialData as UserData);
+        commit("SET_USERDATA", updatedGuestData);
+        saveGuestUserData(updatedGuestData);
+        return;
+      }
+
+      if (mode !== "cloud") {
+        devWarn(`Ignoring update - no active save session (mode: ${mode})`);
+        return;
+      }
+
       const user = getters.user;
       if (!user || !user.uid) {
         throw new Error("No user authenticated");
@@ -489,6 +615,13 @@ export default createStore({
     },
 
     async flushUserDataUpdates({ getters, commit }: any) {
+      // Guest writes hit localStorage synchronously in updateUserData, and
+      // "none" never accumulates anything - only "cloud" has a Firestore
+      // batch that can be pending.
+      if (getters.mode !== "cloud") {
+        return;
+      }
+
       const user = getters.user;
       if (!user || !user.uid) {
         return;
@@ -525,6 +658,7 @@ export default createStore({
         state.userData?.profile
       );
     },
+    mode: (state: RootState) => state.mode,
     loaded: (state: RootState) => state.gameState.loaded,
     error: (state: RootState) => state.gameState.error,
     hasPendingChanges: (state: RootState) => state.gameState.hasPendingChanges,

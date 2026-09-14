@@ -12,10 +12,7 @@
   >
     <div class="gc-header">
       <span class="combat-card__name">{{ name }}</span>
-      <span
-        class="badge"
-        :class="setAttributionBadgeClass"
-      >
+      <span class="badge" :class="setAttributionBadgeClass">
         <i :class="setAttributionIcon" />
       </span>
     </div>
@@ -42,14 +39,12 @@
       v-if="isDead || isDowned"
       class="combat-card__status small text-center"
     >
-      <span
-        v-if="isDead"
-        class="text-danger"
-      ><i class="bi bi-skull" /> Dead</span>
-      <span
-        v-else
-        class="text-warning"
-      ><i class="bi bi-emoji-dizzy" /> Down</span>
+      <span v-if="isDead" class="text-danger"
+        ><i class="bi bi-skull" /> Dead</span
+      >
+      <span v-else class="text-warning"
+        ><i class="bi bi-emoji-dizzy" /> Down</span
+      >
     </div>
   </div>
 </template>

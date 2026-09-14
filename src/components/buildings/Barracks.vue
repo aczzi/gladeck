@@ -5,20 +5,16 @@
     >
       <span><i class="bi bi-shield-fill" /> Barracks</span>
       <div class="d-flex gap-2 flex-wrap">
-        <span class="badge bg-secondary">{{ gladiatorCount }}/{{ capacity }} gladiators</span>
+        <span class="badge bg-secondary"
+          >{{ gladiatorCount }}/{{ capacity }} gladiators</span
+        >
       </div>
     </div>
     <div class="card-body">
-      <p
-        v-if="gladiators.length === 0"
-        class="text-muted m-2"
-      >
+      <p v-if="gladiators.length === 0" class="text-muted m-2">
         No gladiators yet - recruit some at the Market.
       </p>
-      <div
-        v-else
-        class="gladiator-grid m-2"
-      >
+      <div v-else class="gladiator-grid m-2">
         <GladiatorCard
           v-for="gladiator in rankedGladiators"
           :key="gladiator.id"

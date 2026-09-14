@@ -7,9 +7,7 @@
       send them into the arena to bleed for your name.
     </p>
 
-    <h4 class="section-title">
-      <i class="bi bi-houses-fill" /> The Camp
-    </h4>
+    <h4 class="section-title"><i class="bi bi-houses-fill" /> The Camp</h4>
     <div class="row g-3 mb-2">
       <div class="col-sm-6 col-lg-4">
         <div class="card bg-dark text-light h-100 description-card">
@@ -96,9 +94,7 @@
       <div class="col-sm-4">
         <div class="card bg-dark text-light h-100 border-warning">
           <div class="card-body">
-            <h6 class="card-title">
-              <i class="bi bi-fire" /> Brute
-            </h6>
+            <h6 class="card-title"><i class="bi bi-fire" /> Brute</h6>
             <p class="card-text small mb-0 text-muted">
               +20% extra Attack training effectiveness at the Training Program.
             </p>
@@ -108,9 +104,7 @@
       <div class="col-sm-4">
         <div class="card bg-dark text-light h-100 border-info">
           <div class="card-body">
-            <h6 class="card-title">
-              <i class="bi bi-heart-fill" /> Stoic
-            </h6>
+            <h6 class="card-title"><i class="bi bi-heart-fill" /> Stoic</h6>
             <p class="card-text small mb-0 text-muted">
               Sometimes stays standing on a hit that would otherwise knock them
               down.
@@ -121,9 +115,7 @@
       <div class="col-sm-4">
         <div class="card bg-dark text-light h-100 border-success">
           <div class="card-body">
-            <h6 class="card-title">
-              <i class="bi bi-stars" /> Lucky
-            </h6>
+            <h6 class="card-title"><i class="bi bi-stars" /> Lucky</h6>
             <p class="card-text small mb-0 text-muted">
               Gains +2 Luck (instead of +1) on every victory.
             </p>
@@ -184,15 +176,11 @@
       </div>
     </div>
 
-    <h4 class="section-title">
-      <i class="bi bi-shield-fill" /> Combat
-    </h4>
+    <h4 class="section-title"><i class="bi bi-shield-fill" /> Combat</h4>
     <p class="small text-muted">
-      Before each fight, build your squad: 4 slots, empty by default. Pick
-      gladiators from your whole Barracks to fill them - who you send is
-      entirely up to you - and give each one a role right on its card. Drag
+      Before each fight, build your squad of 4 members and give to each one a role. Drag
       slots to reorder or swap them; order matters, it's who acts first on your
-      side each round. The roles:
+      side each round. The roles are :
     </p>
     <div class="row g-3 mb-3">
       <div class="col-sm-4">
@@ -210,9 +198,7 @@
       <div class="col-sm-4">
         <div class="card bg-dark text-light h-100 border-info">
           <div class="card-body">
-            <h6 class="card-title">
-              <i class="bi bi-shield-fill" /> Tank
-            </h6>
+            <h6 class="card-title"><i class="bi bi-shield-fill" /> Tank</h6>
             <p class="card-text small mb-0 text-muted">
               -10% Attack, -10% Luck, +20% Defense.
             </p>
@@ -222,25 +208,16 @@
       <div class="col-sm-4">
         <div class="card bg-dark text-light h-100 border-secondary">
           <div class="card-body">
-            <h6 class="card-title">
-              <i class="bi bi-people-fill" /> Support
-            </h6>
-            <p class="card-text small mb-0 text-muted">
-              No change.
-            </p>
+            <h6 class="card-title"><i class="bi bi-people-fill" /> Support</h6>
+            <p class="card-text small mb-0 text-muted">No change.</p>
           </div>
         </div>
       </div>
     </div>
 
-    <h4 class="section-title">
-      <i class="bi bi-stars" /> Duo Synergies
-    </h4>
+    <h4 class="section-title"><i class="bi bi-stars" /> Duo Synergies</h4>
     <p class="small text-muted">
-      A short, hand-picked list of trait + role pairs - send both members of a
-      pair in the same squad and get a free bonus on top of their stats. Not
-      exhaustive by design: these are worth planning your squad around, not a
-      full combinatorics table.
+      A combo of trait + role pairs for partners 1-2 and 3-4 give free bonus on top of their stats.
     </p>
     <div class="row g-3 mb-3">
       <div
