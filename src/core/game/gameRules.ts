@@ -766,8 +766,8 @@ export function fanDonationGoldSinceLastCollection(
   legacyPoints: number = 0,
 ): number {
   const elapsedMs = Date.now() - lastCollected.toMillis();
-  const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
-  return Math.floor(fanDonationGoldPerDay(level, legacyPoints) * elapsedDays);
+  const elapsedDay = Math.min(elapsedMs / (1000 * 60 * 60 * 24), 1);  
+  return Math.floor(fanDonationGoldPerDay(level, legacyPoints) * elapsedDay);
 }
 
 // Arena wager cap: tied to Fan Donation level so betting can't outrun the
